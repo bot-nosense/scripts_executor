@@ -5,6 +5,8 @@
 *.user
 *.vscode
 *.vs
+
+# Nuget package files
 *.xsd
 
 # Ignore build output
