@@ -37,7 +37,8 @@ namespace ExcuteScripts
         {
             try
             {
-                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {fileName}, {(success ? "chạy thành công" : "chạy thất bại")}";
+                string status = success ? "success" : "fail";
+                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {fileName}, {status}";
 
                 using (StreamWriter sw = File.AppendText(logFilePath))
                 {
@@ -46,7 +47,6 @@ namespace ExcuteScripts
             }
             catch (Exception ex)
             {
-                // Xử lý ngoại lệ khi ghi log
                 Console.WriteLine("Error writing log: " + ex.Message);
             }
         }
@@ -54,24 +54,29 @@ namespace ExcuteScripts
 
         private void bt_conn_Click(object sender, EventArgs e)
         {
-            try
+            using (OracleConnection con = new OracleConnection(connectionString))
             {
-                using (OracleConnection con = new OracleConnection(connectionString))
+                try
                 {
                     con.Open();
                     if (con.State == System.Data.ConnectionState.Open)
                     {
                         tb_stt.Text = "Kết nối thành công";
+                        LogToTextFile("Connect", true);
                     }
                     else
                     {
                         tb_stt.Text = "Không thể kết nối";
+                        LogToTextFile("Connect", false);
                     }
+                    con.Close();
                 }
-            }
-            catch (Exception ex)
-            {
-                tb_stt.Text = "Lỗi: " + ex.Message;
+                catch (Exception ex)
+                {
+                    tb_stt.Text = "Lỗi: " + ex.Message;
+                    LogToTextFile("Error connect database: " + ex.Message + "\nConnect", false);
+                    con.Close();
+                }
             }
         }
 
@@ -99,6 +104,7 @@ namespace ExcuteScripts
                             catch (Exception ex)
                             {
                                 tb_stt.Text = "Lỗi khi sao chép file: " + ex.Message;
+                                LogToTextFile("Import file", false);
                                 return;
                             }
                         }
@@ -109,6 +115,7 @@ namespace ExcuteScripts
                     }
 
                     tb_stt.Text = "Đã import file.";
+                    LogToTextFile("Import file", true);
                 }
             }
         }
@@ -123,13 +130,14 @@ namespace ExcuteScripts
                 {
                     RunSqlPlusScript(file, connectionString);
                     string fileName = Path.GetFileName(file);
-                    LogToTextFile(fileName, true);
+                    LogToTextFile("Executing script" + fileName, true);
                 }
                 tb_stt.Text = "Chạy thành công, đã ghi vào file logs";
             }
             catch (Exception ex)
             {
                 tb_stt.Text = "Error executing scripts: " + ex.Message;
+                LogToTextFile("Error executing scripts: " + ex.Message + "\nExecuting script", true);
             }
         }
 
@@ -150,7 +158,6 @@ namespace ExcuteScripts
                     process.StartInfo = startInfo;
                     process.Start();
 
-                    // Đọc kết quả trả về từ quá trình SQLPlus
                     string output = process.StandardOutput.ReadToEnd();
                     string error = process.StandardError.ReadToEnd();
 
@@ -159,17 +166,20 @@ namespace ExcuteScripts
                     if (!string.IsNullOrEmpty(output))
                     {
                         Console.WriteLine("Output: " + output);
+                        LogToTextFile("Output: " + output + "\nRun script on sqlplus", false);
                     }
 
                     if (!string.IsNullOrEmpty(error))
                     {
                         Console.WriteLine("Error: " + error);
+                        LogToTextFile("Error: " + error + "\nRun script on sqlplus", false);
                     }
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Exception: " + ex.Message);
+                LogToTextFile("Exception: " + ex.Message + "\nRun script on sqlplus", false);
             }
         }
 
