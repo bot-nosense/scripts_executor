@@ -5,6 +5,7 @@
 *.user
 *.vscode
 *.vs
+*.xsd
 
 # Ignore build output
 bin/
