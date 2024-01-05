@@ -10,15 +10,18 @@ using System.Windows.Forms;
 using Oracle.ManagedDataAccess.Client;
 using System.IO;
 using System.Diagnostics;
+using ExcuteScripts.DataAccess.OracleDatabase;
 
 namespace ExcuteScripts
 {
     public partial class Main : Form
     {
-        private string connectionString;
+
         private string dataFolderPath;
         private string logFolder;
         private string logFilePath;
+        private OracleDBManager dbManager;
+        private OracleConnection connection;
 
         public Main()
         {
@@ -86,6 +89,12 @@ namespace ExcuteScripts
                 LogToTextFile("Error connect database: " + ex.Message + "\nConnect", "fail");
                 con.Close();
             }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Lỗi: " + ex.Message;
+                LogToTextFile("Error connect database: " + ex.Message + "\nConnect", false);
+                dbManager.CloseConnection();
+            }
         }
 
         private void bt_import_Click(object sender, EventArgs e)
@@ -143,6 +152,7 @@ namespace ExcuteScripts
                 foreach (string file in sqlFiles)
                 {
                     RunCommandScript(file, connectionString);
+
                     string fileName = Path.GetFileName(file);
                     //LogToTextFile("Executing script " + fileName, "success");
                     //tb_stt.Text = "Chạy " + fileName + " thành công, đã ghi vào file logs";`

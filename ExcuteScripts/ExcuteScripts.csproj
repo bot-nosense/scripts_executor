@@ -102,6 +102,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DataAccess\OracleDatabase\OracleDBManager.cs" />
     <Compile Include="Main.cs">
       <SubType>Form</SubType>
     </Compile>
