@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,20 +38,25 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             }
         }
 
-        public bool OpenConnection()
+        public void OpenConnection()
         {
             try
             {
+                if (connection != null && connection.State == ConnectionState.Open)
+                {
+                    Console.WriteLine("Connection is already open.");
+                }
+
                 connection = new OracleConnection(connectionStringBuilder.ConnectionString);
                 connection.Open();
-                return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Error connecting to Oracle: " + ex.Message);
-                return false;
             }
         }
+
+
 
         public void CloseConnection()
         {
@@ -63,6 +69,11 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
         public OracleConnection GetConnection()
         {
             return connection;
+        }
+
+        public ConnectionState GetState()
+        {
+            return GetConnection().State;
         }
     }
 }
