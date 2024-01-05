@@ -13,6 +13,6 @@ namespace ExcuteScripts.Models.Connection
         public string SID { get; set; }
         public string Username { get; set; }
         public string Password { get; set; }
-        public bool IsUsingSSL { get; set; } // using sysDBA
+        public bool IsUsingSysDBA { get; set; } // SSL 
     }
 }

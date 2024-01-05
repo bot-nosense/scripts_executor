@@ -16,7 +16,6 @@ namespace ExcuteScripts
 {
     public partial class Main : Form
     {
-
         private string dataFolderPath;
         private string logFolder;
         private string logFilePath;
@@ -26,7 +25,9 @@ namespace ExcuteScripts
         public Main()
         {
             InitializeComponent();
-            connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=ideapad3)(PORT=1521)))(CONNECT_DATA=(SID=vdoandb)));User Id=sys;Password=@nHhung123;DBA Privilege=SYSDBA;";
+            dbManager = new OracleDBManager();
+            dbManager.SetConnectionParameters("ideapad3", 1521, "vdoandb", "sys", "@nHhung123", true);
+            connection = dbManager.GetConnection();
             dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
             logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
             logFilePath = Path.Combine(logFolder, "log.txt");
@@ -67,11 +68,10 @@ namespace ExcuteScripts
 
         private void bt_conn_Click(object sender, EventArgs e)
         {
-            using (OracleConnection con = new OracleConnection(connectionString))
             try
             {
-                con.Open();
-                if (con.State == System.Data.ConnectionState.Open)
+                dbManager.OpenConnection();
+                if (dbManager.GetConnection().State == System.Data.ConnectionState.Open)
                 {
                     tb_stt.Text = "Kết nối thành công";
                     LogToTextFile("Connect", "success");
@@ -80,19 +80,13 @@ namespace ExcuteScripts
                 {
                     tb_stt.Text = "Không thể kết nối";
                     LogToTextFile("Connect", "fail");
+                    dbManager.CloseConnection();
                 }
-                con.Close();
             }
             catch (Exception ex)
             {
                 tb_stt.Text = "Lỗi: " + ex.Message;
                 LogToTextFile("Error connect database: " + ex.Message + "\nConnect", "fail");
-                con.Close();
-            }
-            catch (Exception ex)
-            {
-                tb_stt.Text = "Lỗi: " + ex.Message;
-                LogToTextFile("Error connect database: " + ex.Message + "\nConnect", false);
                 dbManager.CloseConnection();
             }
         }
@@ -151,17 +145,16 @@ namespace ExcuteScripts
 
                 foreach (string file in sqlFiles)
                 {
-                    RunCommandScript(file, connectionString);
-
+                    RunSqlPlusScript(file, connection);
                     string fileName = Path.GetFileName(file);
-                    //LogToTextFile("Executing script " + fileName, "success");
-                    //tb_stt.Text = "Chạy " + fileName + " thành công, đã ghi vào file logs";`
+                    LogToTextFile("Executing script" + fileName, "success");
                 }
+                tb_stt.Text = "Chạy thành công, đã ghi vào file logs";
             }
             catch (Exception ex)
             {
                 tb_stt.Text = "Error executing scripts: " + ex.Message;
-                LogToTextFile("Error executing scripts: " + ex.Message + "\nExecuting script", "success");
+                LogToTextFile("Error executing scripts: " + ex.Message + "\nExecuting script", "fail");
             }
         }
 
@@ -197,10 +190,8 @@ namespace ExcuteScripts
                 }
         }
 
-        private void RunSqlPlusScript(string scriptFilePath, string connectionString)
+        private void RunSqlPlusScript(string scriptFilePath, OracleConnection connectionString)
         {
-            using (Process process = new Process())
-
             try
             {
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -211,34 +202,33 @@ namespace ExcuteScripts
                 startInfo.RedirectStandardError = true;
                 startInfo.CreateNoWindow = true;
 
-                process.StartInfo = startInfo;
-                process.Start();
-                process.WaitForExit();
-
-                Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
-                Task<string> errorTask = process.StandardError.ReadToEndAsync();
-
-                string output = outputTask.Result;
-                string error = errorTask.Result;
-
-                if (!string.IsNullOrEmpty(output))
+                using (Process process = new Process())
                 {
-                    Console.WriteLine("Output: " + output);
-                    //LogToTextFile("Output: " + output + "\nRun script on sqlplus", false);
-                }
+                    process.StartInfo = startInfo;
+                    process.Start();
 
-                if (!string.IsNullOrEmpty(error))
-                {
-                    Console.WriteLine("Error: " + error);
-                    LogToTextFile("Run script on sqlplus", "fail, " + "Error: " + error);
+                    string output = process.StandardOutput.ReadToEnd();
+                    string error = process.StandardError.ReadToEnd();
+
+                    process.WaitForExit();
+
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        Console.WriteLine("Output: " + output);
+                        LogToTextFile("Output: " + output + "\nRun script on sqlplus", "fail");
+                    }
+
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        Console.WriteLine("Error: " + error);
+                        LogToTextFile("Error: " + error + "\nRun script on sqlplus", "fail");
+                    }
                 }
-                process.Close();
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Exception: " + ex.Message);
                 LogToTextFile("Exception: " + ex.Message + "\nRun script on sqlplus", "fail");
-                process.Close();
             }
         }
 
@@ -247,12 +237,7 @@ namespace ExcuteScripts
         {
             try
             {
-                string[] files = Directory.GetFiles(dataFolderPath);
-
-                foreach (string file in files)
-                {
-                    File.Delete(file);
-                }
+                ClearFolder(dataFolderPath);
 
                 tb_stt.Text = "Đã xóa tất cả các file trong thư mục Data.";
                 tb_view_ip.Clear();
