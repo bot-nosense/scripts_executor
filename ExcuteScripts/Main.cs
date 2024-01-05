@@ -49,11 +49,11 @@ namespace ExcuteScripts
             }
         }
 
-        private void LogToTextFile(string fileName, string success) // "success" : "fail"
+        private void WriteToLogFile(string text, string success) // "success" : "fail"
         {
             try
             {
-                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {fileName}, {success}";
+                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {text}, {success}";
 
                 using (StreamWriter sw = File.AppendText(logFilePath))
                 {
@@ -71,22 +71,22 @@ namespace ExcuteScripts
             try
             {
                 dbManager.OpenConnection();
-                if (dbManager.GetConnection().State == System.Data.ConnectionState.Open)
+                if (dbManager.GetState() == ConnectionState.Open)
                 {
                     tb_stt.Text = "Kết nối thành công";
-                    LogToTextFile("Connect", "success");
+                    WriteToLogFile("Connect", "success");
                 }
                 else
                 {
                     tb_stt.Text = "Không thể kết nối";
-                    LogToTextFile("Connect", "fail");
+                    WriteToLogFile("Connect", "fail");
                     dbManager.CloseConnection();
                 }
             }
             catch (Exception ex)
             {
                 tb_stt.Text = "Lỗi: " + ex.Message;
-                LogToTextFile("Error connect database: " + ex.Message + "\nConnect", "fail");
+                WriteToLogFile("Error connect database: " + ex.Message + "\nConnect", "fail");
                 dbManager.CloseConnection();
             }
         }
@@ -115,7 +115,7 @@ namespace ExcuteScripts
                             catch (Exception ex)
                             {
                                 tb_stt.Text = "Lỗi khi sao chép file: " + ex.Message;
-                                LogToTextFile("Import file", "fail");
+                                WriteToLogFile("Import file", "fail");
                                 return;
                             }
                         }
@@ -126,72 +126,61 @@ namespace ExcuteScripts
                     }
 
                     tb_stt.Text = "Đã import file.";
-                    LogToTextFile("Import file", "success");
+                    WriteToLogFile("Import file", "success");
                 }
             }
         }
 
         private void bt_submit_Click(object sender, EventArgs e)
         {
-            try
+            string[] sqlFiles = Directory.GetFiles(dataFolderPath, "*.sql");
+
+            if (sqlFiles.Length == 0)
             {
-                string[] sqlFiles = Directory.GetFiles(dataFolderPath, "*.sql");
-
-                if (sqlFiles.Length == 0)
-                {
-                    tb_stt.Text = "Không có tệp .sql để thực thi";
-                    return;
-                }
-
-                foreach (string file in sqlFiles)
-                {
-                    RunSqlPlusScript(file, connection);
-                    string fileName = Path.GetFileName(file);
-                    LogToTextFile("Executing script" + fileName, "success");
-                }
-                tb_stt.Text = "Chạy thành công, đã ghi vào file logs";
+                tb_stt.Text = "Không có tệp .sql để thực thi";
+                return;
             }
-            catch (Exception ex)
+
+            foreach (string file in sqlFiles)
             {
-                tb_stt.Text = "Error executing scripts: " + ex.Message;
-                LogToTextFile("Error executing scripts: " + ex.Message + "\nExecuting script", "fail");
+                RunCommandScript(file);
+                //RunSqlPlusScript(file, connection);  // anh Hưng không dùng được sqlplus
             }
         }
 
-        private void RunCommandScript(string scriptFilePath, string connectionString)
+        private void RunCommandScript(string file)
         {
-            using (OracleConnection con = new OracleConnection(connectionString))
-                try
+            string fileName = Path.GetFileName(file);
+            try
+            {
+                dbManager.OpenConnection();
+                if (dbManager.GetState() == ConnectionState.Open)
                 {
-                    con.Open();
-                    if (con.State == System.Data.ConnectionState.Open)
+                    string sqlScript = System.IO.File.ReadAllText(file);
+                    using (OracleCommand cmd = new OracleCommand(sqlScript, dbManager.GetConnection()))
                     {
-                        string sqlScript = System.IO.File.ReadAllText(logFilePath);
-                        using (OracleCommand cmd = new OracleCommand(sqlScript, con))
-                        {
-                            cmd.ExecuteNonQuery();
-                        }
+                        cmd.ExecuteNonQuery();
+                        WriteToLogFile("File: " + fileName, "excute success");
+                    }
 
-                        tb_stt.Text = "Kết nối thành công";
-                        LogToTextFile("Connect", "success");
-                    }
-                    else
-                    {
-                        tb_stt.Text = "Không thể kết nối";
-                        LogToTextFile("Connect", "fail");
-                    }
-                    con.Close();
+                    tb_stt.Text = "File: " + fileName + " excute success";
                 }
-                catch (Exception ex)
+                else
                 {
-                    tb_stt.Text = "Lỗi: " + ex.Message;
-                    LogToTextFile("Error connect database: " + ex.Message + "\nConnect", "fail");
-                    con.Close();
+                    dbManager.CloseConnection();
                 }
+            }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Error: " + fileName + ex.Message;
+                WriteToLogFile("Error: " + ex.Message + "\nFile: " + fileName, "excute fail");
+                dbManager.CloseConnection();
+            }
         }
 
         private void RunSqlPlusScript(string scriptFilePath, OracleConnection connectionString)
         {
+            Console.WriteLine("connectionString", connectionString);
             try
             {
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -215,20 +204,20 @@ namespace ExcuteScripts
                     if (!string.IsNullOrEmpty(output))
                     {
                         Console.WriteLine("Output: " + output);
-                        LogToTextFile("Output: " + output + "\nRun script on sqlplus", "fail");
+                        WriteToLogFile("Output: " + output + "\nRun script on sqlplus", "fail");
                     }
 
                     if (!string.IsNullOrEmpty(error))
                     {
                         Console.WriteLine("Error: " + error);
-                        LogToTextFile("Error: " + error + "\nRun script on sqlplus", "fail");
+                        WriteToLogFile("Error: " + error + "\nRun script on sqlplus", "fail");
                     }
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Exception: " + ex.Message);
-                LogToTextFile("Exception: " + ex.Message + "\nRun script on sqlplus", "fail");
+                WriteToLogFile("Exception: " + ex.Message + "\nRun script on sqlplus", "fail");
             }
         }
 
