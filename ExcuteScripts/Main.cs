@@ -10,20 +10,25 @@ using System.Windows.Forms;
 using Oracle.ManagedDataAccess.Client;
 using System.IO;
 using System.Diagnostics;
+using ExcuteScripts.DataAccess.OracleDatabase;
 
 namespace ExcuteScripts
 {
     public partial class Main : Form
     {
-        private string connectionString;
+
         private string dataFolderPath;
         private string logFolder;
         private string logFilePath;
+        private OracleDBManager dbManager;
+        private OracleConnection connection;
 
         public Main()
         {
             InitializeComponent();
-            connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=ideapad3)(PORT=1522)))(CONNECT_DATA=(SID=db)));User Id=sys;Password=@nHhung123;DBA Privilege=SYSDBA;";
+            dbManager = new OracleDBManager();
+            dbManager.SetConnectionParameters("ideapad3", 1522, "db", "sys", "@nHhung123", true);
+            connection = dbManager.GetConnection();
             dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
             logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
             logFilePath = Path.Combine(logFolder, "log.txt");
@@ -54,29 +59,26 @@ namespace ExcuteScripts
 
         private void bt_conn_Click(object sender, EventArgs e)
         {
-            using (OracleConnection con = new OracleConnection(connectionString))
+            try
             {
-                try
+                dbManager.OpenConnection();
+                if (dbManager.GetConnection().State == System.Data.ConnectionState.Open)
                 {
-                    con.Open();
-                    if (con.State == System.Data.ConnectionState.Open)
-                    {
-                        tb_stt.Text = "Kết nối thành công";
-                        LogToTextFile("Connect", true);
-                    }
-                    else
-                    {
-                        tb_stt.Text = "Không thể kết nối";
-                        LogToTextFile("Connect", false);
-                    }
-                    con.Close();
+                    tb_stt.Text = "Kết nối thành công";
+                    LogToTextFile("Connect", true);
                 }
-                catch (Exception ex)
+                else
                 {
-                    tb_stt.Text = "Lỗi: " + ex.Message;
-                    LogToTextFile("Error connect database: " + ex.Message + "\nConnect", false);
-                    con.Close();
+                    tb_stt.Text = "Không thể kết nối";
+                    LogToTextFile("Connect", false);
+                    dbManager.CloseConnection();
                 }
+            }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Lỗi: " + ex.Message;
+                LogToTextFile("Error connect database: " + ex.Message + "\nConnect", false);
+                dbManager.CloseConnection();
             }
         }
 
@@ -128,7 +130,7 @@ namespace ExcuteScripts
 
                 foreach (string file in sqlFiles)
                 {
-                    RunSqlPlusScript(file, connectionString);
+                    RunSqlPlusScript(file, connection);
                     string fileName = Path.GetFileName(file);
                     LogToTextFile("Executing script" + fileName, true);
                 }
@@ -141,7 +143,7 @@ namespace ExcuteScripts
             }
         }
 
-        private void RunSqlPlusScript(string scriptFilePath, string connectionString)
+        private void RunSqlPlusScript(string scriptFilePath, OracleConnection connectionString)
         {
             try
             {
