@@ -23,7 +23,7 @@ namespace ExcuteScripts
         public Main()
         {
             InitializeComponent();
-            connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=ideapad3)(PORT=1522)))(CONNECT_DATA=(SID=db)));User Id=sys;Password=@nHhung123;DBA Privilege=SYSDBA;";
+            connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=ideapad3)(PORT=1521)))(CONNECT_DATA=(SID=vdoandb)));User Id=sys;Password=@nHhung123;DBA Privilege=SYSDBA;";
             dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
             logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
             logFilePath = Path.Combine(logFolder, "log.txt");
@@ -31,14 +31,25 @@ namespace ExcuteScripts
             Directory.CreateDirectory(dataFolderPath);
             Directory.CreateDirectory(logFolder);
             StreamWriter sw = File.CreateText(logFilePath);
+
+            ClearFolder(dataFolderPath);
         }
 
-        private void LogToTextFile(string fileName, bool success)
+        private void ClearFolder(string dataFolderPath)
+        {
+            string[] files = Directory.GetFiles(dataFolderPath);
+
+            foreach (string file in files)
+            {
+                File.Delete(file);
+            }
+        }
+
+        private void LogToTextFile(string fileName, string success) // "success" : "fail"
         {
             try
             {
-                string status = success ? "success" : "fail";
-                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {fileName}, {status}";
+                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {fileName}, {success}";
 
                 using (StreamWriter sw = File.AppendText(logFilePath))
                 {
@@ -51,32 +62,29 @@ namespace ExcuteScripts
             }
         }
 
-
         private void bt_conn_Click(object sender, EventArgs e)
         {
             using (OracleConnection con = new OracleConnection(connectionString))
+            try
             {
-                try
+                con.Open();
+                if (con.State == System.Data.ConnectionState.Open)
                 {
-                    con.Open();
-                    if (con.State == System.Data.ConnectionState.Open)
-                    {
-                        tb_stt.Text = "Kết nối thành công";
-                        LogToTextFile("Connect", true);
-                    }
-                    else
-                    {
-                        tb_stt.Text = "Không thể kết nối";
-                        LogToTextFile("Connect", false);
-                    }
-                    con.Close();
+                    tb_stt.Text = "Kết nối thành công";
+                    LogToTextFile("Connect", "success");
                 }
-                catch (Exception ex)
+                else
                 {
-                    tb_stt.Text = "Lỗi: " + ex.Message;
-                    LogToTextFile("Error connect database: " + ex.Message + "\nConnect", false);
-                    con.Close();
+                    tb_stt.Text = "Không thể kết nối";
+                    LogToTextFile("Connect", "fail");
                 }
+                con.Close();
+            }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Lỗi: " + ex.Message;
+                LogToTextFile("Error connect database: " + ex.Message + "\nConnect", "fail");
+                con.Close();
             }
         }
 
@@ -104,7 +112,7 @@ namespace ExcuteScripts
                             catch (Exception ex)
                             {
                                 tb_stt.Text = "Lỗi khi sao chép file: " + ex.Message;
-                                LogToTextFile("Import file", false);
+                                LogToTextFile("Import file", "fail");
                                 return;
                             }
                         }
@@ -115,7 +123,7 @@ namespace ExcuteScripts
                     }
 
                     tb_stt.Text = "Đã import file.";
-                    LogToTextFile("Import file", true);
+                    LogToTextFile("Import file", "success");
                 }
             }
         }
@@ -126,23 +134,63 @@ namespace ExcuteScripts
             {
                 string[] sqlFiles = Directory.GetFiles(dataFolderPath, "*.sql");
 
+                if (sqlFiles.Length == 0)
+                {
+                    tb_stt.Text = "Không có tệp .sql để thực thi";
+                    return;
+                }
+
                 foreach (string file in sqlFiles)
                 {
-                    RunSqlPlusScript(file, connectionString);
+                    RunCommandScript(file, connectionString);
                     string fileName = Path.GetFileName(file);
-                    LogToTextFile("Executing script" + fileName, true);
+                    //LogToTextFile("Executing script " + fileName, "success");
+                    //tb_stt.Text = "Chạy " + fileName + " thành công, đã ghi vào file logs";`
                 }
-                tb_stt.Text = "Chạy thành công, đã ghi vào file logs";
             }
             catch (Exception ex)
             {
                 tb_stt.Text = "Error executing scripts: " + ex.Message;
-                LogToTextFile("Error executing scripts: " + ex.Message + "\nExecuting script", true);
+                LogToTextFile("Error executing scripts: " + ex.Message + "\nExecuting script", "success");
             }
+        }
+
+        private void RunCommandScript(string scriptFilePath, string connectionString)
+        {
+            using (OracleConnection con = new OracleConnection(connectionString))
+                try
+                {
+                    con.Open();
+                    if (con.State == System.Data.ConnectionState.Open)
+                    {
+                        string sqlScript = System.IO.File.ReadAllText(logFilePath);
+                        using (OracleCommand cmd = new OracleCommand(sqlScript, con))
+                        {
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        tb_stt.Text = "Kết nối thành công";
+                        LogToTextFile("Connect", "success");
+                    }
+                    else
+                    {
+                        tb_stt.Text = "Không thể kết nối";
+                        LogToTextFile("Connect", "fail");
+                    }
+                    con.Close();
+                }
+                catch (Exception ex)
+                {
+                    tb_stt.Text = "Lỗi: " + ex.Message;
+                    LogToTextFile("Error connect database: " + ex.Message + "\nConnect", "fail");
+                    con.Close();
+                }
         }
 
         private void RunSqlPlusScript(string scriptFilePath, string connectionString)
         {
+            using (Process process = new Process())
+
             try
             {
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -153,33 +201,34 @@ namespace ExcuteScripts
                 startInfo.RedirectStandardError = true;
                 startInfo.CreateNoWindow = true;
 
-                using (Process process = new Process())
+                process.StartInfo = startInfo;
+                process.Start();
+                process.WaitForExit();
+
+                Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+                Task<string> errorTask = process.StandardError.ReadToEndAsync();
+
+                string output = outputTask.Result;
+                string error = errorTask.Result;
+
+                if (!string.IsNullOrEmpty(output))
                 {
-                    process.StartInfo = startInfo;
-                    process.Start();
-
-                    string output = process.StandardOutput.ReadToEnd();
-                    string error = process.StandardError.ReadToEnd();
-
-                    process.WaitForExit();
-
-                    if (!string.IsNullOrEmpty(output))
-                    {
-                        Console.WriteLine("Output: " + output);
-                        LogToTextFile("Output: " + output + "\nRun script on sqlplus", false);
-                    }
-
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        Console.WriteLine("Error: " + error);
-                        LogToTextFile("Error: " + error + "\nRun script on sqlplus", false);
-                    }
+                    Console.WriteLine("Output: " + output);
+                    //LogToTextFile("Output: " + output + "\nRun script on sqlplus", false);
                 }
+
+                if (!string.IsNullOrEmpty(error))
+                {
+                    Console.WriteLine("Error: " + error);
+                    LogToTextFile("Run script on sqlplus", "fail, " + "Error: " + error);
+                }
+                process.Close();
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Exception: " + ex.Message);
-                LogToTextFile("Exception: " + ex.Message + "\nRun script on sqlplus", false);
+                LogToTextFile("Exception: " + ex.Message + "\nRun script on sqlplus", "fail");
+                process.Close();
             }
         }
 
