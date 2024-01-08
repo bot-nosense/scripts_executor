@@ -1,0 +1,6 @@
+HOST="ideapad3"
+PORT="1521"
+SID="vdoandb"
+SERVICE_NAME="vdoandb"
+USER_ID="SYS"
+PASSWORD="@nHhung123"
