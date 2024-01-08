@@ -11,32 +11,41 @@ using Oracle.ManagedDataAccess.Client;
 using System.IO;
 using System.Diagnostics;
 using ExcuteScripts.DataAccess.OracleDatabase;
+using ExcuteScripts.Config;
 
 namespace ExcuteScripts
 {
     public partial class Main : Form
     {
         private string dataFolderPath;
-        private string logFolder;
-        private string logFilePath;
+        private string logFullPath;
         private OracleDBManager dbManager;
-        private OracleConnection connection;
 
         public Main()
         {
             InitializeComponent();
-            dbManager = new OracleDBManager();
-            dbManager.SetConnectionParameters("ideapad3", 1521, "vdoandb", "sys", "@nHhung123", true);
-            connection = dbManager.GetConnection();
-            dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
-            logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
-            logFilePath = Path.Combine(logFolder, "log.txt");
+            Dictionary<string, string> sysConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath("../../Config/sysConfig.txt"));
+            Dictionary<string, string> dbConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath(sysConfig["DbConfigPath"].Trim('"')));
 
+            string host = dbConfig["HOST"];
+            string port = dbConfig["PORT"];
+            string sid = dbConfig["SID"];
+            string userId = dbConfig["USER_ID"];
+            string password = dbConfig["PASSWORD"];
+            bool sysDba = true;
+
+            dbManager = new OracleDBManager();
+            dbManager.SetConnectionParameters( host, port, sid, userId, password, sysDba);
+            dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
             Directory.CreateDirectory(dataFolderPath);
-            Directory.CreateDirectory(logFolder);
-            StreamWriter sw = File.CreateText(logFilePath);
+            logFullPath = Path.GetFullPath(sysConfig["LogFilePath"].Trim('"'));
 
             ClearFolder(dataFolderPath);
+
+            //tb_stt.Text = int.Parse(dbConfig["PORT"]);
+            WriteToLogFile("--------", "");
+            WriteToLogFile(" \t \t \t NEW SEESION", "");
+            WriteToLogFile("Login Param: "+ dbConfig["HOST"] + ", " + dbConfig["PORT"] + ", " + dbConfig["SERVICE_NAME"] + ", " + dbConfig["USER_ID"] + ", " + dbConfig["PASSWORD"], "");
         }
 
         private void ClearFolder(string dataFolderPath)
@@ -49,13 +58,13 @@ namespace ExcuteScripts
             }
         }
 
-        private void WriteToLogFile(string text, string success) // "success" : "fail"
+        private void WriteToLogFile(string info, string detail) 
         {
             try
             {
-                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {text}, {success}";
+                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {info}, {detail}";
 
-                using (StreamWriter sw = File.AppendText(logFilePath))
+                using (StreamWriter sw = File.AppendText(logFullPath))
                 {
                     sw.WriteLine(logInfo);
                 }
@@ -66,6 +75,12 @@ namespace ExcuteScripts
             }
         }
 
+        private void ReturnStatus(string info, string detail = "")
+        { 
+            tb_stt.Text = info;
+            WriteToLogFile(info, detail);
+        }
+
         private void bt_conn_Click(object sender, EventArgs e)
         {
             try
@@ -73,26 +88,24 @@ namespace ExcuteScripts
                 dbManager.OpenConnection();
                 if (dbManager.GetState() == ConnectionState.Open)
                 {
-                    tb_stt.Text = "Kết nối thành công";
-                    WriteToLogFile("Connect", "success");
+                    ReturnStatus("Connect success");
                 }
                 else
                 {
-                    tb_stt.Text = "Không thể kết nối";
-                    WriteToLogFile("Connect", "fail");
+                    ReturnStatus("Connect fail");
                     dbManager.CloseConnection();
                 }
             }
             catch (Exception ex)
             {
-                tb_stt.Text = "Lỗi: " + ex.Message;
-                WriteToLogFile("Error connect database: " + ex.Message + "\nConnect", "fail");
+                ReturnStatus("Connect fail", ex.Message);
                 dbManager.CloseConnection();
             }
         }
 
         private void bt_import_Click(object sender, EventArgs e)
         {
+            ClearFolder(dataFolderPath);
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
                 openFileDialog.Multiselect = true;
@@ -114,8 +127,7 @@ namespace ExcuteScripts
                             }
                             catch (Exception ex)
                             {
-                                tb_stt.Text = "Lỗi khi sao chép file: " + ex.Message;
-                                WriteToLogFile("Import file", "fail");
+                                ReturnStatus("Import files fail", ex.Message);
                                 return;
                             }
                         }
@@ -125,8 +137,7 @@ namespace ExcuteScripts
                         }
                     }
 
-                    tb_stt.Text = "Đã import file.";
-                    WriteToLogFile("Import file", "success");
+                    ReturnStatus("Import fils success");
                 }
             }
         }
@@ -157,23 +168,49 @@ namespace ExcuteScripts
                 if (dbManager.GetState() == ConnectionState.Open)
                 {
                     string sqlScript = System.IO.File.ReadAllText(file);
-                    using (OracleCommand cmd = new OracleCommand(sqlScript, dbManager.GetConnection()))
+                    string[] sqlStatements = sqlScript.Split(';');
+
+                    foreach (string sqlStatement in sqlStatements)
                     {
-                        cmd.ExecuteNonQuery();
-                        WriteToLogFile("File: " + fileName, "excute success");
+                        if (!string.IsNullOrWhiteSpace(sqlStatement))
+                        {
+                            using (OracleCommand cmd = new OracleCommand(sqlStatement, dbManager.GetConnection()))
+                            {
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
                     }
 
-                    tb_stt.Text = "File: " + fileName + " excute success";
+                    ReturnStatus("File: " + fileName + " excute success");
+                    dbManager.CloseConnection();
                 }
                 else
                 {
                     dbManager.CloseConnection();
                 }
             }
+            catch (OracleException ex)
+            {
+                string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
+                ReturnStatus("File: " + fileName + " execute failed", errorMessage);
+                dbManager.CloseConnection();
+            }
             catch (Exception ex)
             {
-                tb_stt.Text = "Error: " + fileName + ex.Message;
-                WriteToLogFile("Error: " + ex.Message + "\nFile: " + fileName, "excute fail");
+                ReturnStatus("File: " + fileName + " execute failed", ex.Message);
+                // DS lỗi
+                //if (ex.Message == "ORA-65021: illegal use of SHARING clause")
+                //{
+                //    tb_stt.Text = "ORA-65021: Không cho phép sử dụng mệnh đề SHARING";
+                //}    
+                //else if (ex.Message == "ORA-00933: SQL command not properly ended")
+                //{
+                //    tb_stt.Text = "ORA-00933: Query bị lỗi, cú pháp kết thúc sai";
+                //}    
+                //else if (ex.Message == "ORA-00922: missing or invalid option")
+                //{
+                //    tb_stt.Text = "ORA-00922: Cú pháp thiếu hoặc sai";
+                //}    
                 dbManager.CloseConnection();
             }
         }
@@ -203,21 +240,18 @@ namespace ExcuteScripts
 
                     if (!string.IsNullOrEmpty(output))
                     {
-                        Console.WriteLine("Output: " + output);
-                        WriteToLogFile("Output: " + output + "\nRun script on sqlplus", "fail");
+                           
                     }
 
                     if (!string.IsNullOrEmpty(error))
                     {
-                        Console.WriteLine("Error: " + error);
-                        WriteToLogFile("Error: " + error + "\nRun script on sqlplus", "fail");
+                        ReturnStatus("Run script on sqlplus fail");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Exception: " + ex.Message);
-                WriteToLogFile("Exception: " + ex.Message + "\nRun script on sqlplus", "fail");
+                ReturnStatus("Run script on sqlplus fail");
             }
         }
 
@@ -241,9 +275,23 @@ namespace ExcuteScripts
         {
             try
             {
-                Process.Start(logFilePath);
+                Process.Start(logFullPath);
                 tb_stt.Text = "Đang mở file ...";
-                lb_Data.Text = logFilePath;
+                lb_Data.Text = logFullPath;
+            }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Lỗi khi mở file log: " + ex.Message;
+            }
+        }
+
+        private void bt_cof_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Process.Start(logFullPath);
+                tb_stt.Text = "Đang mở file ...";
+                lb_Data.Text = logFullPath;
             }
             catch (Exception ex)
             {

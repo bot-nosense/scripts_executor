@@ -67,6 +67,7 @@ namespace ExcuteScripts
             this.bt_cof.TabIndex = 0;
             this.bt_cof.Text = "Open Config File";
             this.bt_cof.UseVisualStyleBackColor = true;
+            this.bt_cof.Click += new System.EventHandler(this.bt_cof_Click);
             // 
             // bt_conn
             // 

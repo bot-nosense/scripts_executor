@@ -26,7 +26,7 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             connectionStringBuilder.Password = password;
         }
 
-        public void SetConnectionParameters(string host, int port, string sid, string userId, string password, bool sysDba = false)
+        public void SetConnectionParameters(string host, string port, string sid, string userId, string password, bool sysDba = false)
         {
             connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
             connectionStringBuilder.UserID = userId;
