@@ -24,8 +24,7 @@ namespace ExcuteScripts
         public Main()
         {
             InitializeComponent();
-            Dictionary<string, string> sysConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath("../../Config/sysConfig.txt"));
-            Dictionary<string, string> dbConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath(sysConfig["DbConfigPath"].Trim('"')));
+            Dictionary<string, string> dbConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath(Constants.DBCONFIGPATH));
 
             string host = dbConfig["HOST"];
             string port = dbConfig["PORT"];
@@ -38,7 +37,7 @@ namespace ExcuteScripts
             dbManager.SetConnectionParameters( host, port, sid, userId, password, sysDba);
             dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
             Directory.CreateDirectory(dataFolderPath);
-            logFullPath = Path.GetFullPath(sysConfig["LogFilePath"].Trim('"'));
+            logFullPath = Path.GetFullPath(Constants.LOGFILEPATH);
 
             ClearFolder(dataFolderPath);
 

@@ -56,8 +56,6 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             }
         }
 
-
-
         public void CloseConnection()
         {
             if (connection != null && connection.State == System.Data.ConnectionState.Open)
