@@ -104,7 +104,9 @@
   <ItemGroup>
     <Compile Include="Config\Constants.cs" />
     <Compile Include="Config\ConstantsReader.cs" />
+    <Compile Include="DataAccess\Excute\ScriptExecutor.cs" />
     <Compile Include="DataAccess\OracleDatabase\OracleDBManager.cs" />
+    <Compile Include="DataAccess\Utils.cs" />
     <Compile Include="Main.cs">
       <SubType>Form</SubType>
     </Compile>
