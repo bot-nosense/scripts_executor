@@ -19,17 +19,32 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             connectionStringBuilder = new OracleConnectionStringBuilder();
         }
 
-        public void SetConnectionParameters(string host, int port, string sid, string user, string password)
+        public void SetConnectionParameters(string host, string port, string sid, string service_name, string user, string password, string is_sid)
         {
-            connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
+            if (int.Parse(is_sid) == 0)
+            {
+                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={service_name})))";
+            }
+            else
+            {
+                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
+            }
             connectionStringBuilder.UserID = user;
             connectionStringBuilder.Password = password;
         }
 
-        public void SetConnectionParameters(string host, string port, string sid, string userId, string password, bool sysDba = false)
+        public void SetConnectionParameters(string host, string port, string sid, string service_name, string user, string password, string is_sid, bool sysDba = false)
         {
-            connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
-            connectionStringBuilder.UserID = userId;
+            Console.WriteLine(host + ", " + port + ", " + sid + ", ", user + ", " + password);
+            if (int.Parse(is_sid) == 0)
+            {
+                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={service_name})))";
+            }
+            else
+            {
+                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
+            }
+            connectionStringBuilder.UserID = user;
             connectionStringBuilder.Password = password;
 
             if (sysDba)

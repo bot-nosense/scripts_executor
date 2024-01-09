@@ -19,29 +19,31 @@ namespace ExcuteScripts
     {
         private string dataFolderPath;
         private string logFullPath;
+        private string dbConfigFullPath;
         private OracleDBManager dbManager;
 
         public Main()
         {
             InitializeComponent();
+            dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
+            logFullPath = Path.GetFullPath(Constants.LOGFILEPATH);
+            dbConfigFullPath = Path.GetFullPath(Constants.DBCONFIGPATH);
+            ClearFolder(dataFolderPath);
             Dictionary<string, string> dbConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath(Constants.DBCONFIGPATH));
 
             string host = dbConfig["HOST"];
             string port = dbConfig["PORT"];
             string sid = dbConfig["SID"];
+            string serviceName = dbConfig["SERVICE_NAME"];
             string userId = dbConfig["USER_ID"];
             string password = dbConfig["PASSWORD"];
+            string isSid = dbConfig["IS_SID"];
             bool sysDba = true;
 
             dbManager = new OracleDBManager();
-            dbManager.SetConnectionParameters( host, port, sid, userId, password, sysDba);
-            dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
+            dbManager.SetConnectionParameters( host, port, sid, serviceName, userId, password, isSid, sysDba);
             Directory.CreateDirectory(dataFolderPath);
-            logFullPath = Path.GetFullPath(Constants.LOGFILEPATH);
 
-            ClearFolder(dataFolderPath);
-
-            //tb_stt.Text = int.Parse(dbConfig["PORT"]);
             WriteToLogFile("--------", "");
             WriteToLogFile(" \t \t \t NEW SEESION", "");
             WriteToLogFile("Login Param: "+ dbConfig["HOST"] + ", " + dbConfig["PORT"] + ", " + dbConfig["SERVICE_NAME"] + ", " + dbConfig["USER_ID"] + ", " + dbConfig["PASSWORD"], "");
@@ -288,13 +290,13 @@ namespace ExcuteScripts
         {
             try
             {
-                Process.Start(logFullPath);
+                Process.Start(dbConfigFullPath);
                 tb_stt.Text = "Đang mở file ...";
-                lb_Data.Text = logFullPath;
+                lb_Data.Text = dbConfigFullPath;
             }
             catch (Exception ex)
             {
-                tb_stt.Text = "Lỗi khi mở file log: " + ex.Message;
+                tb_stt.Text = "Lỗi khi mở file config: " + ex.Message;
             }
         }
     }

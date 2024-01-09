@@ -75,7 +75,7 @@ namespace ExcuteScripts
             this.bt_conn.Name = "bt_conn";
             this.bt_conn.Size = new System.Drawing.Size(121, 52);
             this.bt_conn.TabIndex = 0;
-            this.bt_conn.Text = "Connect";
+            this.bt_conn.Text = "Try Connect";
             this.bt_conn.UseVisualStyleBackColor = true;
             this.bt_conn.Click += new System.EventHandler(this.bt_conn_Click);
             // 
