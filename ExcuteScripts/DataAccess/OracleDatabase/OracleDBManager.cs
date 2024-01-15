@@ -83,7 +83,6 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
         {
             return connection;
         }
-
         public ConnectionState GetState()
         {
             return GetConnection().State;
