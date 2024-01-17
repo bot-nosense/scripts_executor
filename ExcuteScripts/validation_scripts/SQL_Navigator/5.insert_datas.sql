@@ -1,0 +1,63 @@
+BEGIN
+  FOR i IN 1..10 LOOP
+    INSERT INTO alert_qt1 (
+      q_name,
+      msgid,
+      corrid,
+      priority,
+      state,
+      delay,
+      expiration,
+      time_manager_info,
+      local_order_no,
+      chain_no,
+      cscn,
+      dscn,
+      enq_time,
+      enq_uid,
+      enq_tid,
+      deq_time,
+      deq_uid,
+      deq_tid,
+      retry_count,
+      exception_qschema,
+      exception_queue,
+      step_no,
+      recipient_key,
+      dequeue_msgid,
+      sender_name,
+      sender_address,
+      sender_protocol
+    ) VALUES (
+      'QueueName' || TO_CHAR(i),
+      RAWTOHEX(SYS_GUID()),
+      'CorrelationID' || TO_CHAR(i),
+      i,
+      i,
+      SYSTIMESTAMP + i,
+      i * 2,
+      SYSTIMESTAMP + i * 3,
+      i * 4,
+      i * 5,
+      i * 6,
+      i * 7,
+      SYSTIMESTAMP + i * 8,
+      'EnqueueUserID' || TO_CHAR(i),
+      'EnqueueThreadID' || TO_CHAR(i),
+      SYSTIMESTAMP + i * 9,
+      'DequeueUserID' || TO_CHAR(i),
+      'DequeueThreadID' || TO_CHAR(i),
+      i * 10,
+      'ExceptionQSchema' || TO_CHAR(i),
+      'ExceptionQueue' || TO_CHAR(i),
+      i * 11,
+      i * 12,
+      RAWTOHEX(SYS_GUID()),
+      'SenderName' || TO_CHAR(i),
+      'SenderAddress' || TO_CHAR(i),
+      i * 13
+    );
+  END LOOP;
+  COMMIT;
+END;
+/
