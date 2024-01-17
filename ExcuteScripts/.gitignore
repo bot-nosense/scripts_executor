@@ -19,4 +19,5 @@ obj/
 *.sln.docstates
 
 # File system
-ExcuteScripts/Logs/log.txt
+*.txt
+

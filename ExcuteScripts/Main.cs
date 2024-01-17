@@ -12,23 +12,24 @@ using System.IO;
 using System.Diagnostics;
 using ExcuteScripts.DataAccess.OracleDatabase;
 using ExcuteScripts.Config;
+using ExcuteScripts.DataAccess;
+using System.Text.RegularExpressions;
 
 namespace ExcuteScripts
 {
     public partial class Main : Form
     {
-        private string dataFolderPath;
-        private string logFullPath;
-        private string dbConfigFullPath;
+        #region Props
         private OracleDBManager dbManager;
+        private OracleConnection connection;
+        private OracleTransaction transaction;
+        #endregion
 
+        #region Events
         public Main()
         {
             InitializeComponent();
-            dataFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
-            logFullPath = Path.GetFullPath(Constants.LOGFILEPATH);
-            dbConfigFullPath = Path.GetFullPath(Constants.DBCONFIGPATH);
-            ClearFolder(dataFolderPath);
+            Utils.ClearFolder(Constants.DATAFOLDERPATH);
             Dictionary<string, string> dbConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath(Constants.DBCONFIGPATH));
 
             string host = dbConfig["HOST"];
@@ -41,45 +42,13 @@ namespace ExcuteScripts
             bool sysDba = true;
 
             dbManager = new OracleDBManager();
-            dbManager.SetConnectionParameters( host, port, sid, serviceName, userId, password, isSid, sysDba);
-            Directory.CreateDirectory(dataFolderPath);
+            dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, sysDba);
+            connection = dbManager.GetConnection();
+            Directory.CreateDirectory(Constants.DATAFOLDERPATH);
 
-            WriteToLogFile("--------", "");
-            WriteToLogFile(" \t \t \t NEW SEESION", "");
-            WriteToLogFile("Login Param: "+ dbConfig["HOST"] + ", " + dbConfig["PORT"] + ", " + dbConfig["SERVICE_NAME"] + ", " + dbConfig["USER_ID"] + ", " + dbConfig["PASSWORD"], "");
-        }
-
-        private void ClearFolder(string dataFolderPath)
-        {
-            string[] files = Directory.GetFiles(dataFolderPath);
-
-            foreach (string file in files)
-            {
-                File.Delete(file);
-            }
-        }
-
-        private void WriteToLogFile(string info, string detail) 
-        {
-            try
-            {
-                string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {info}, {detail}";
-
-                using (StreamWriter sw = File.AppendText(logFullPath))
-                {
-                    sw.WriteLine(logInfo);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error writing log: " + ex.Message);
-            }
-        }
-
-        private void ReturnStatus(string info, string detail = "")
-        { 
-            tb_stt.Text = info;
-            WriteToLogFile(info, detail);
+            Utils.WriteToLogFile("--------", "");
+            Utils.WriteToLogFile(" \t \t \t NEW SEESION", "");
+            Utils.WriteToLogFile("Login Param: " + dbConfig["HOST"] + ", " + dbConfig["PORT"] + ", " + dbConfig["SERVICE_NAME"] + ", " + dbConfig["USER_ID"] + ", " + dbConfig["PASSWORD"], "");
         }
 
         private void bt_conn_Click(object sender, EventArgs e)
@@ -89,31 +58,31 @@ namespace ExcuteScripts
                 dbManager.OpenConnection();
                 if (dbManager.GetState() == ConnectionState.Open)
                 {
-                    ReturnStatus("Connect success");
+                    Utils.ReturnStatus("Connect success", "", tb_stt);
                 }
                 else
                 {
-                    ReturnStatus("Connect fail");
+                    Utils.ReturnStatus("Connect fail", "", tb_stt);
                     dbManager.CloseConnection();
                 }
             }
             catch (Exception ex)
             {
-                ReturnStatus("Connect fail", ex.Message);
+                Utils.ReturnStatus("Connect fail", ex.Message, tb_stt);
                 dbManager.CloseConnection();
             }
         }
 
         private void bt_import_Click(object sender, EventArgs e)
         {
-            ClearFolder(dataFolderPath);
+            Utils.ClearFolder(Constants.DATAFOLDERPATH);
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
                 openFileDialog.Multiselect = true;
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    lb_Data.Text = dataFolderPath;
+                    lb_Data.Text = Constants.DATAFOLDERPATH;
                     tb_view_ip.Clear();
 
                     foreach (string file in openFileDialog.FileNames)
@@ -122,13 +91,13 @@ namespace ExcuteScripts
                         {
                             try
                             {
-                                string destinationFile = Path.Combine(dataFolderPath, Path.GetFileName(file));
+                                string destinationFile = Path.Combine(Constants.DATAFOLDERPATH, Path.GetFileName(file));
                                 File.Copy(file, destinationFile, true);
                                 tb_view_ip.AppendText(Path.GetFileName(file) + Environment.NewLine);
                             }
                             catch (Exception ex)
                             {
-                                ReturnStatus("Import files fail", ex.Message);
+                                Utils.ReturnStatus("Import files fail", ex.Message, tb_stt);
                                 return;
                             }
                         }
@@ -138,130 +107,34 @@ namespace ExcuteScripts
                         }
                     }
 
-                    ReturnStatus("Import fils success");
+                    Utils.ReturnStatus("Import fils success", "", tb_stt);
                 }
             }
         }
 
         private void bt_submit_Click(object sender, EventArgs e)
         {
-            string[] sqlFiles = Directory.GetFiles(dataFolderPath, "*.sql");
+            string[] sqlFiles = Directory.GetFiles(Constants.DATAFOLDERPATH, "*.sql");
+            List<string> commands = new List<string>();
+            connection = dbManager.GetConnection();
+            dbManager.OpenConnection();
 
             if (sqlFiles.Length == 0)
             {
                 tb_stt.Text = "Không có tệp .sql để thực thi";
                 return;
             }
-
-            foreach (string file in sqlFiles)
+            else
             {
-                RunCommandScript(file);
-                //RunSqlPlusScript(file, connection);  // anh Hưng không dùng được sqlplus
+                ExcuteOracleCommand(sqlFiles, transaction, commands);
             }
         }
-
-        private void RunCommandScript(string file)
-        {
-            string fileName = Path.GetFileName(file);
-            try
-            {
-                dbManager.OpenConnection();
-                if (dbManager.GetState() == ConnectionState.Open)
-                {
-                    string sqlScript = System.IO.File.ReadAllText(file);
-                    string[] sqlStatements = sqlScript.Split(';');
-
-                    foreach (string sqlStatement in sqlStatements)
-                    {
-                        if (!string.IsNullOrWhiteSpace(sqlStatement))
-                        {
-                            using (OracleCommand cmd = new OracleCommand(sqlStatement, dbManager.GetConnection()))
-                            {
-                                cmd.ExecuteNonQuery();
-                            }
-                        }
-                    }
-
-                    ReturnStatus("File: " + fileName + " excute success");
-                    dbManager.CloseConnection();
-                }
-                else
-                {
-                    dbManager.CloseConnection();
-                }
-            }
-            catch (OracleException ex)
-            {
-                string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
-                ReturnStatus("File: " + fileName + " execute failed", errorMessage);
-                dbManager.CloseConnection();
-            }
-            catch (Exception ex)
-            {
-                ReturnStatus("File: " + fileName + " execute failed", ex.Message);
-                // DS lỗi
-                //if (ex.Message == "ORA-65021: illegal use of SHARING clause")
-                //{
-                //    tb_stt.Text = "ORA-65021: Không cho phép sử dụng mệnh đề SHARING";
-                //}    
-                //else if (ex.Message == "ORA-00933: SQL command not properly ended")
-                //{
-                //    tb_stt.Text = "ORA-00933: Query bị lỗi, cú pháp kết thúc sai";
-                //}    
-                //else if (ex.Message == "ORA-00922: missing or invalid option")
-                //{
-                //    tb_stt.Text = "ORA-00922: Cú pháp thiếu hoặc sai";
-                //}    
-                dbManager.CloseConnection();
-            }
-        }
-
-        private void RunSqlPlusScript(string scriptFilePath, OracleConnection connectionString)
-        {
-            Console.WriteLine("connectionString", connectionString);
-            try
-            {
-                ProcessStartInfo startInfo = new ProcessStartInfo();
-                startInfo.FileName = "sqlplus";
-                startInfo.Arguments = connectionString + " @" + scriptFilePath;
-                startInfo.UseShellExecute = false;
-                startInfo.RedirectStandardOutput = true;
-                startInfo.RedirectStandardError = true;
-                startInfo.CreateNoWindow = true;
-
-                using (Process process = new Process())
-                {
-                    process.StartInfo = startInfo;
-                    process.Start();
-
-                    string output = process.StandardOutput.ReadToEnd();
-                    string error = process.StandardError.ReadToEnd();
-
-                    process.WaitForExit();
-
-                    if (!string.IsNullOrEmpty(output))
-                    {
-                           
-                    }
-
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        ReturnStatus("Run script on sqlplus fail");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                ReturnStatus("Run script on sqlplus fail");
-            }
-        }
-
 
         private void bt_clear_Click(object sender, EventArgs e)
         {
             try
             {
-                ClearFolder(dataFolderPath);
+                Utils.ClearFolder(Constants.DATAFOLDERPATH);
 
                 tb_stt.Text = "Đã xóa tất cả các file trong thư mục Data.";
                 tb_view_ip.Clear();
@@ -276,9 +149,9 @@ namespace ExcuteScripts
         {
             try
             {
-                Process.Start(logFullPath);
+                Process.Start(Constants.LOGFULLPATH);
                 tb_stt.Text = "Đang mở file ...";
-                lb_Data.Text = logFullPath;
+                lb_Data.Text = Constants.LOGFULLPATH;
             }
             catch (Exception ex)
             {
@@ -290,18 +163,231 @@ namespace ExcuteScripts
         {
             try
             {
-                Process.Start(dbConfigFullPath);
+                Process.Start(Constants.DBCONFIGFULLPATH);
                 tb_stt.Text = "Đang mở file ...";
-                lb_Data.Text = dbConfigFullPath;
+                lb_Data.Text = Constants.DBCONFIGFULLPATH;
             }
             catch (Exception ex)
             {
                 tb_stt.Text = "Lỗi khi mở file config: " + ex.Message;
             }
         }
+        #endregion
+
+        #region Methods
+        private void ExcuteOracleCommand(string[] sqlFiles, OracleTransaction transaction, List<string> commands)
+        {
+            try
+            {
+                using (transaction = connection.BeginTransaction())
+                {
+                    if (dbManager.GetState() == ConnectionState.Open)
+                    {
+                        foreach (string file in sqlFiles)
+                        {
+                            string fileName = Path.GetFileName(file);
+                            string sqlScript = File.ReadAllText(file);
+
+                            try
+                            {
+                                using (OracleCommand command = connection.CreateCommand())
+                                {
+                                    command.CommandType = CommandType.Text;
+                                    command.Transaction = transaction;
+
+                                    //command.CommandText = sqlScript;
+                                    //command.ExecuteNonQuery();
+
+                                    commands = SplitString(sqlScript);
+                                    
+                                    if (commands.Count < 1)
+                                    {
+                                        Utils.ReturnStatus("File: " + fileName + " execute failed", " No valid data", tb_stt);
+                                    }
+                                    else
+                                    {
+                                        foreach (string commandText in commands)
+                                        {
+                                            command.CommandText = commandText.Trim().Replace(";", "");
+
+                                            try
+                                            {
+                                                command.ExecuteNonQuery();
+                                            }
+                                            catch (OracleException ex)
+                                            {
+                                                Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
+                                                transaction.Rollback();
+                                                return;
+                                            }
+                                        }
+
+                                        Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                    } 
+                                }
+                            }
+                            catch (OracleException ex)
+                            {
+                                string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
+                                Utils.ReturnStatus("File: " + fileName + " execute failed", errorMessage, tb_stt);
+                            }
+                            catch (Exception ex)
+                            {
+                                Utils.ReturnStatus("File: " + fileName + " execute failed", ex.Message, tb_stt);
+                            }
+                        }
+
+                        transaction.Commit();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.ReturnStatus("Error occurred", ex.Message, tb_stt);
+            }
+            finally
+            {
+                transaction?.Dispose();
+                dbManager.CloseConnection();
+            }
+        }
+
+        private void ExcuteCommandScript(string file)
+        {
+            //string fileName = Path.GetFileName(file);
+            //try
+            //{
+            //    dbManager.OpenConnection();
+            //    if (dbManager.GetState() == ConnectionState.Open)
+            //    {
+            //        string sqlScript = System.IO.File.ReadAllText(file);
+            //        string[] sqlStatements = sqlScript.Split(';');
+
+            //        foreach (string sqlStatement in sqlStatements)
+            //        {
+            //            if (!string.IsNullOrWhiteSpace(sqlStatement))
+            //            {
+            //                using (OracleCommand cmd = new OracleCommand(sqlStatement, dbManager.GetConnection()))
+            //                {
+            //                    cmd.ExecuteNonQuery();
+            //                }
+            //            }
+            //        }
+
+            //        Utils.ReturnStatus("File: " + fileName + " excute success", "", tb_stt);
+            //        dbManager.CloseConnection();
+            //    }
+            //    else
+            //    {
+            //        dbManager.CloseConnection();
+            //    }
+            //}
+            //catch (OracleException ex)
+            //{
+            //    string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
+            //    Utils.ReturnStatus("File: " + fileName + " execute failed", errorMessage, tb_stt);
+            //    dbManager.CloseConnection();
+            //}
+            //catch (Exception ex)
+            //{
+            //    Utils.ReturnStatus("File: " + fileName + " execute failed", ex.Message, tb_stt);
+            //    dbManager.CloseConnection();
+            //}
+        }
+
+        private void ExcuteSqlPlusScript(string scriptFilePath, OracleConnection connectionString)
+        {
+            //Console.WriteLine("connectionString", connectionString);
+            //try
+            //{
+            //    ProcessStartInfo startInfo = new ProcessStartInfo();
+            //    startInfo.FileName = "sqlplus";
+            //    startInfo.Arguments = connectionString + " @" + scriptFilePath;
+            //    startInfo.UseShellExecute = false;
+            //    startInfo.RedirectStandardOutput = true;
+            //    startInfo.RedirectStandardError = true;
+            //    startInfo.CreateNoWindow = true;
+
+            //    using (Process process = new Process())
+            //    {
+            //        process.StartInfo = startInfo;
+            //        process.Start();
+
+            //        string output = process.StandardOutput.ReadToEnd();
+            //        string error = process.StandardError.ReadToEnd();
+
+            //        process.WaitForExit();
+
+            //        if (!string.IsNullOrEmpty(output))
+            //        {
+
+            //        }
+
+            //        if (!string.IsNullOrEmpty(error))
+            //        {
+            //            Utils.ReturnStatus("Run script on sqlplus fail", "", tb_stt);
+            //        }
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Utils.ReturnStatus("Run script on sqlplus fail", ex.Message, tb_stt);
+            //}
+        }
+
+        private string BuildRegexPattern(string[] scriptKeys)
+        {
+            StringBuilder patternBuilder = new StringBuilder("(");
+
+            foreach (string key in scriptKeys)
+            {
+                patternBuilder.Append($"{key}[^/;]+[/;]|");
+            }
+
+            patternBuilder.Remove(patternBuilder.Length - 1, 1); 
+            patternBuilder.Append(")");
+
+            return patternBuilder.ToString();
+        }   
+        
+        private List<string> SplitString(string sqlScript)
+        {
+            List<string> result = new List<string>();
+
+            //string[] commands = sqlScript.Split(new[] { "\\" }, StringSplitOptions.RemoveEmptyEntries); // thêm điều kiện tách scripts
+            // tách từng đoạn, sau đó tìm cách loại bỏ cmt trong script được tách
+            //string[] commands = sqlScript.Split(new[] { ";", "/" }, StringSplitOptions.RemoveEmptyEntries);
+            //foreach (var item in commands)
+            //{
+            //    string updateItem = item.Trim() + ";";
+
+            //    if (Constants.SCRIPTKEYS.Any(key => updateItem.TrimStart().StartsWith(key, StringComparison.OrdinalIgnoreCase)))
+            //    {
+
+            //        string[] parts = updateItem.Split(new string[] { matchingKeywords }, StringSplitOptions.RemoveEmptyEntries);
+
+            //    }
+            //    if (!string.IsNullOrWhiteSpace(updateItem))
+            //    {
+            //        result.Add(updateItem);
+            //    }
+
+            //}
+
+            string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);
+            MatchCollection matches = Regex.Matches(sqlScript, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+            string[] scriptParts = new string[matches.Count];
+            for (int i = 0; i < matches.Count; i++)
+            {
+                scriptParts[i] = matches[i].Value.Trim();
+                result.Add(scriptParts[i]);
+            }
+
+            return result;
+        }
+        #endregion
+
+
     }
 }
-
-
-
-
