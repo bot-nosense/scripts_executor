@@ -195,28 +195,35 @@ namespace ExcuteScripts
                                     command.CommandType = CommandType.Text;
                                     command.Transaction = transaction;
 
-                                    command.CommandText = sqlScript;
-                                    command.ExecuteNonQuery();
+                                    //command.CommandText = sqlScript;
+                                    //command.ExecuteNonQuery();
 
-                                    //commands = SplitString(sqlScript);
+                                    commands = SplitString(sqlScript);
+                                    
+                                    if (commands.Count < 1)
+                                    {
+                                        Utils.ReturnStatus("File: " + fileName + " execute failed", " No valid data", tb_stt);
+                                    }
+                                    else
+                                    {
+                                        foreach (string commandText in commands)
+                                        {
+                                            command.CommandText = commandText.Trim().Replace(";", "");
 
-                                    //foreach (string commandText in commands)
-                                    //{
-                                    //    command.CommandText = commandText.Trim();
+                                            try
+                                            {
+                                                command.ExecuteNonQuery();
+                                            }
+                                            catch (OracleException ex)
+                                            {
+                                                Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
+                                                transaction.Rollback();
+                                                return;
+                                            }
+                                        }
 
-                                    //    try
-                                    //    {
-                                    //        command.ExecuteNonQuery();
-                                    //    }
-                                    //    catch (OracleException ex)
-                                    //    {
-                                    //        Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
-                                    //        transaction.Rollback();
-                                    //        return;
-                                    //    }
-                                    //}
-
-                                    Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                        Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                    } 
                                 }
                             }
                             catch (OracleException ex)
