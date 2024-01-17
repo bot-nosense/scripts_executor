@@ -19,5 +19,5 @@ obj/
 *.sln.docstates
 
 # File system
-*.txt
+#*.txt
 
