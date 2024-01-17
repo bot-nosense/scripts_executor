@@ -194,10 +194,6 @@ namespace ExcuteScripts
                                 {
                                     command.CommandType = CommandType.Text;
                                     command.Transaction = transaction;
-
-                                    //command.CommandText = sqlScript;
-                                    //command.ExecuteNonQuery();
-
                                     commands = SplitString(sqlScript);
                                     
                                     if (commands.Count < 1)
@@ -208,7 +204,7 @@ namespace ExcuteScripts
                                     {
                                         foreach (string commandText in commands)
                                         {
-                                            command.CommandText = commandText.Trim().Replace(";", "");
+                                            command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
 
                                             try
                                             {
