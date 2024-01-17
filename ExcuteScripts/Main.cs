@@ -194,10 +194,6 @@ namespace ExcuteScripts
                                 {
                                     command.CommandType = CommandType.Text;
                                     command.Transaction = transaction;
-
-                                    //command.CommandText = sqlScript;
-                                    //command.ExecuteNonQuery();
-
                                     commands = SplitString(sqlScript);
                                     
                                     if (commands.Count < 1)
