@@ -1,4 +1,4 @@
-HOST=ideapad3
+HOST=ìifififif 
 PORT=1521
 SID=vdoandb
 SERVICE_NAME=vdoandb

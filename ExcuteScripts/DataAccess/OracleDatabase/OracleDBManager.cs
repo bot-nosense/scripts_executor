@@ -59,15 +59,14 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             {
                 if (connection != null && connection.State == ConnectionState.Open)
                 {
-                    Console.WriteLine("Connection is already open.");
+                    Utils.WriteToLogFile("Connection is already open.", "");
+                    connection = new OracleConnection(connectionStringBuilder.ConnectionString);
+                    connection.Open();
                 }
-
-                connection = new OracleConnection(connectionStringBuilder.ConnectionString);
-                connection.Open();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error connecting to Oracle: " + ex.Message);
+                Utils.WriteToLogFile("Error connecting to Oracle: ", ex.Message);
             }
         }
 

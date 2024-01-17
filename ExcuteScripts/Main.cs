@@ -63,12 +63,15 @@ namespace ExcuteScripts
                 else
                 {
                     Utils.ReturnStatus("Connect fail", "", tb_stt);
-                    dbManager.CloseConnection();
+                    return;
                 }
             }
             catch (Exception ex)
             {
                 Utils.ReturnStatus("Connect fail", ex.Message, tb_stt);
+            }
+            finally
+            {
                 dbManager.CloseConnection();
             }
         }
