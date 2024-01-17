@@ -29,6 +29,7 @@ namespace ExcuteScripts
         public Main()
         {
             InitializeComponent();
+            Directory.CreateDirectory(Constants.DATAFOLDERPATH);
             Utils.ClearFolder(Constants.DATAFOLDERPATH);
             Dictionary<string, string> dbConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath(Constants.DBCONFIGPATH));
 
@@ -44,7 +45,6 @@ namespace ExcuteScripts
             dbManager = new OracleDBManager();
             dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, sysDba);
             connection = dbManager.GetConnection();
-            Directory.CreateDirectory(Constants.DATAFOLDERPATH);
 
             Utils.WriteToLogFile("--------", "");
             Utils.WriteToLogFile(" \t \t \t NEW SEESION", "");
