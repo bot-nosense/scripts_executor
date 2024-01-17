@@ -34,7 +34,7 @@ namespace ExcuteScripts.DataAccess
                 string logInfo = $"{DateTime.Now.ToString("yyyyMMdd-HH:mm")}, {info}, {detail}";
 
 
-                using (StreamWriter sw = File.AppendText(Constants.logFullPath))
+                using (StreamWriter sw = File.AppendText(Constants.LOGFULLPATH))
                 {
                     sw.WriteLine(logInfo);
                 }

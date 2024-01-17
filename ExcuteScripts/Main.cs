@@ -13,6 +13,7 @@ using System.Diagnostics;
 using ExcuteScripts.DataAccess.OracleDatabase;
 using ExcuteScripts.Config;
 using ExcuteScripts.DataAccess;
+using System.Text.RegularExpressions;
 
 namespace ExcuteScripts
 {
@@ -28,7 +29,7 @@ namespace ExcuteScripts
         public Main()
         {
             InitializeComponent();
-            Utils.ClearFolder(Constants.dataFolderPath);
+            Utils.ClearFolder(Constants.DATAFOLDERPATH);
             Dictionary<string, string> dbConfig = ConstantsReader.ReadConstantsFromFile(Path.GetFullPath(Constants.DBCONFIGPATH));
 
             string host = dbConfig["HOST"];
@@ -43,7 +44,7 @@ namespace ExcuteScripts
             dbManager = new OracleDBManager();
             dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, sysDba);
             connection = dbManager.GetConnection();
-            Directory.CreateDirectory(Constants.dataFolderPath);
+            Directory.CreateDirectory(Constants.DATAFOLDERPATH);
 
             Utils.WriteToLogFile("--------", "");
             Utils.WriteToLogFile(" \t \t \t NEW SEESION", "");
@@ -74,14 +75,14 @@ namespace ExcuteScripts
 
         private void bt_import_Click(object sender, EventArgs e)
         {
-            Utils.ClearFolder(Constants.dataFolderPath);
+            Utils.ClearFolder(Constants.DATAFOLDERPATH);
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
                 openFileDialog.Multiselect = true;
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    lb_Data.Text = Constants.dataFolderPath;
+                    lb_Data.Text = Constants.DATAFOLDERPATH;
                     tb_view_ip.Clear();
 
                     foreach (string file in openFileDialog.FileNames)
@@ -90,7 +91,7 @@ namespace ExcuteScripts
                         {
                             try
                             {
-                                string destinationFile = Path.Combine(Constants.dataFolderPath, Path.GetFileName(file));
+                                string destinationFile = Path.Combine(Constants.DATAFOLDERPATH, Path.GetFileName(file));
                                 File.Copy(file, destinationFile, true);
                                 tb_view_ip.AppendText(Path.GetFileName(file) + Environment.NewLine);
                             }
@@ -113,27 +114,69 @@ namespace ExcuteScripts
 
         private void bt_submit_Click(object sender, EventArgs e)
         {
-            string[] sqlFiles = Directory.GetFiles(Constants.dataFolderPath, "*.sql");
+            string[] sqlFiles = Directory.GetFiles(Constants.DATAFOLDERPATH, "*.sql");
+            List<string> commands = new List<string>();
             connection = dbManager.GetConnection();
             dbManager.OpenConnection();
-            transaction = connection.BeginTransaction();
 
             if (sqlFiles.Length == 0)
             {
                 tb_stt.Text = "Không có tệp .sql để thực thi";
                 return;
             }
+            else
+            {
+                ExcuteOracleCommand(sqlFiles, transaction, commands);
+            }
+        }
 
-            //if (dbManager.GetState() == ConnectionState.Open)
-            //{
-            //    foreach (string file in sqlFiles)
-            //    {
-            //        ExcuteOracleCommand(file, transaction);
-            //    }
-            //}
+        private void bt_clear_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Utils.ClearFolder(Constants.DATAFOLDERPATH);
 
-            //dbManager.CloseConnection();
+                tb_stt.Text = "Đã xóa tất cả các file trong thư mục Data.";
+                tb_view_ip.Clear();
+            }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Lỗi khi xóa file: " + ex.Message;
+            }
+        }
 
+        private void bt_log_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Process.Start(Constants.LOGFULLPATH);
+                tb_stt.Text = "Đang mở file ...";
+                lb_Data.Text = Constants.LOGFULLPATH;
+            }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Lỗi khi mở file log: " + ex.Message;
+            }
+        }
+
+        private void bt_cof_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Process.Start(Constants.DBCONFIGFULLPATH);
+                tb_stt.Text = "Đang mở file ...";
+                lb_Data.Text = Constants.DBCONFIGFULLPATH;
+            }
+            catch (Exception ex)
+            {
+                tb_stt.Text = "Lỗi khi mở file config: " + ex.Message;
+            }
+        }
+        #endregion
+
+        #region Methods
+        private void ExcuteOracleCommand(string[] sqlFiles, OracleTransaction transaction, List<string> commands)
+        {
             try
             {
                 using (transaction = connection.BeginTransaction())
@@ -152,23 +195,26 @@ namespace ExcuteScripts
                                     command.CommandType = CommandType.Text;
                                     command.Transaction = transaction;
 
-                                    string[] commands = sqlScript.Split(new[] { "\\" }, StringSplitOptions.RemoveEmptyEntries); // thêm điều kiện tách scripts
+                                    command.CommandText = sqlScript;
+                                    command.ExecuteNonQuery();
 
-                                    foreach (string commandText in commands)
-                                    {
-                                        command.CommandText = commandText; 
+                                    //commands = SplitString(sqlScript);
 
-                                        try
-                                        {
-                                            command.ExecuteNonQuery();
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
-                                            transaction.Rollback();
-                                            return;
-                                        }
-                                    }
+                                    //foreach (string commandText in commands)
+                                    //{
+                                    //    command.CommandText = commandText.Trim();
+
+                                    //    try
+                                    //    {
+                                    //        command.ExecuteNonQuery();
+                                    //    }
+                                    //    catch (OracleException ex)
+                                    //    {
+                                    //        Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
+                                    //        transaction.Rollback();
+                                    //        return;
+                                    //    }
+                                    //}
 
                                     Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
                                 }
@@ -196,96 +242,6 @@ namespace ExcuteScripts
             {
                 transaction?.Dispose();
                 dbManager.CloseConnection();
-            }
-        }
-
-        private void bt_clear_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                Utils.ClearFolder(Constants.dataFolderPath);
-
-                tb_stt.Text = "Đã xóa tất cả các file trong thư mục Data.";
-                tb_view_ip.Clear();
-            }
-            catch (Exception ex)
-            {
-                tb_stt.Text = "Lỗi khi xóa file: " + ex.Message;
-            }
-        }
-
-        private void bt_log_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                Process.Start(Constants.logFullPath);
-                tb_stt.Text = "Đang mở file ...";
-                lb_Data.Text = Constants.logFullPath;
-            }
-            catch (Exception ex)
-            {
-                tb_stt.Text = "Lỗi khi mở file log: " + ex.Message;
-            }
-        }
-
-        private void bt_cof_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                Process.Start(Constants.dbConfigFullPath);
-                tb_stt.Text = "Đang mở file ...";
-                lb_Data.Text = Constants.dbConfigFullPath;
-            }
-            catch (Exception ex)
-            {
-                tb_stt.Text = "Lỗi khi mở file config: " + ex.Message;
-            }
-        }
-        #endregion
-
-        #region Methods
-        private void ExcuteOracleCommand(string file, OracleTransaction transaction)
-        {
-            string fileName = Path.GetFileName(file);
-            string sqlScript = File.ReadAllText(file);
-            try
-            {
-                using (OracleCommand command = connection.CreateCommand())
-                {
-                    command.CommandType = CommandType.Text;
-                    //command.Transaction = transaction;
-                    //string[] commands = sqlScript.Split(new[] { ";\r\n" }, StringSplitOptions.RemoveEmptyEntries); // đặt thêm điều kiện chia nhỏ scripts
-                    string[] commands = sqlScript.Split(new[] { "\\" }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (string commandText in commands)
-                    {
-                        command.CommandText = commandText;
-                        try
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        catch (Exception ex)
-                        {
-                            Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
-                            transaction.Rollback(); // cân nhắc đặt rollback ở catch ngoài ?
-                            return;
-                        }
-                    }
-                    transaction.Commit();
-                    Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
-                }
-            }
-            catch (OracleException ex)
-            {
-                string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
-                Utils.ReturnStatus("File: " + fileName + " execute failed", errorMessage, tb_stt);
-            }
-            catch (Exception ex)
-            {
-                Utils.ReturnStatus("File: " + fileName + " execute failed", ex.Message, tb_stt);
-            }
-            finally
-            {
-                transaction?.Dispose();
             }
         }
 
@@ -372,6 +328,57 @@ namespace ExcuteScripts
             //}
         }
 
+        private string BuildRegexPattern(string[] scriptKeys)
+        {
+            StringBuilder patternBuilder = new StringBuilder("(");
+
+            foreach (string key in scriptKeys)
+            {
+                patternBuilder.Append($"{key}[^/;]+[/;]|");
+            }
+
+            patternBuilder.Remove(patternBuilder.Length - 1, 1); 
+            patternBuilder.Append(")");
+
+            return patternBuilder.ToString();
+        }   
+        
+        private List<string> SplitString(string sqlScript)
+        {
+            List<string> result = new List<string>();
+
+            //string[] commands = sqlScript.Split(new[] { "\\" }, StringSplitOptions.RemoveEmptyEntries); // thêm điều kiện tách scripts
+            // tách từng đoạn, sau đó tìm cách loại bỏ cmt trong script được tách
+            //string[] commands = sqlScript.Split(new[] { ";", "/" }, StringSplitOptions.RemoveEmptyEntries);
+            //foreach (var item in commands)
+            //{
+            //    string updateItem = item.Trim() + ";";
+
+            //    if (Constants.SCRIPTKEYS.Any(key => updateItem.TrimStart().StartsWith(key, StringComparison.OrdinalIgnoreCase)))
+            //    {
+
+            //        string[] parts = updateItem.Split(new string[] { matchingKeywords }, StringSplitOptions.RemoveEmptyEntries);
+
+            //    }
+            //    if (!string.IsNullOrWhiteSpace(updateItem))
+            //    {
+            //        result.Add(updateItem);
+            //    }
+
+            //}
+
+            string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);
+            MatchCollection matches = Regex.Matches(sqlScript, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+            string[] scriptParts = new string[matches.Count];
+            for (int i = 0; i < matches.Count; i++)
+            {
+                scriptParts[i] = matches[i].Value.Trim();
+                result.Add(scriptParts[i]);
+            }
+
+            return result;
+        }
         #endregion
 
 
