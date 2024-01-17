@@ -204,7 +204,7 @@ namespace ExcuteScripts
                                     {
                                         foreach (string commandText in commands)
                                         {
-                                            command.CommandText = commandText.Trim().Replace(";", "");
+                                            command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
 
                                             try
                                             {
