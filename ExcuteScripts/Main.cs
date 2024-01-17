@@ -40,10 +40,12 @@ namespace ExcuteScripts
             string userId = dbConfig["USER_ID"];
             string password = dbConfig["PASSWORD"];
             string isSid = dbConfig["IS_SID"];
-            bool sysDba = true;
+            string isServer = dbConfig["IS_SERVER"];
+            string serverName = dbConfig["SERVER"];
+            bool sysDba = false;
 
             dbManager = new OracleDBManager();
-            dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, sysDba);
+            dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, isServer, serverName, sysDba);
             connection = dbManager.GetConnection();
 
             Utils.WriteToLogFile("--------", "");

@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 using Oracle.ManagedDataAccess.Client;
 
 
@@ -23,27 +24,41 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
         {
             if (int.Parse(is_sid) == 0)
             {
-                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={service_name})))";
+                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={service_name})))";
             }
             else
             {
-                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
+                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
             }
             connectionStringBuilder.UserID = user;
             connectionStringBuilder.Password = password;
         }
 
-        public void SetConnectionParameters(string host, string port, string sid, string service_name, string user, string password, string is_sid, bool sysDba = false)
+        public void SetConnectionParameters(string host, string port, string sid, string service_name, string user, string password, string is_sid, string is_server, string server, bool sysDba = false)
         {
-            Console.WriteLine(host + ", " + port + ", " + sid + ", ", user + ", " + password);
-            if (int.Parse(is_sid) == 0)
+            if (int.Parse(is_server) == 1)
             {
-                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={service_name})))";
+                if (int.Parse(is_sid) == 0)
+                {
+                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SERVICE_NAME={service_name}))(SERVER={server}))";
+                }
+                else
+                {
+                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SID={sid}))(SERVER={server}))";
+                }
             }
             else
             {
-                connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
+                if (int.Parse(is_sid) == 0)
+                {
+                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={service_name})))";
+                }
+                else
+                {
+                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SID={sid})))";
+                }
             }
+
             connectionStringBuilder.UserID = user;
             connectionStringBuilder.Password = password;
 
@@ -60,9 +75,9 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
                 if (connection != null && connection.State == ConnectionState.Open)
                 {
                     Utils.WriteToLogFile("Connection is already open.", "");
-                    connection = new OracleConnection(connectionStringBuilder.ConnectionString);
-                    connection.Open();
                 }
+                connection = new OracleConnection(connectionStringBuilder.ConnectionString);
+                connection.Open();
             }
             catch (Exception ex)
             {
