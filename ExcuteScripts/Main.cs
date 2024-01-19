@@ -54,31 +54,42 @@ namespace ExcuteScripts
 
         private void bt_conn_Click(object sender, EventArgs e)
         {
-            using (connection = dbManager.GetConnection())
+            if (dbManager == null)
             {
-                if (connection != null && connection.State != ConnectionState.Open)
+                Utils.ReturnStatus("OracleDBManager is null", "", tb_stt);
+                return;
+            }
+            else
+            {
+                using (connection = dbManager.GetConnection())
                 {
-                    try
+                    if (connection != null && connection.State != ConnectionState.Open)
                     {
-                        connection.Open();
+                        try
+                        {
+                            connection.Open();
 
-                        if (connection.State == ConnectionState.Open)
-                        {
-                            Utils.ReturnStatus("Connect success", "", tb_stt);
+                            if (connection.State == ConnectionState.Open)
+                            {
+                                Utils.ReturnStatus("Connect success", "", tb_stt);
+                            }
+                            else
+                            {
+                                Utils.ReturnStatus("Connect fail", " connection cannot be opened", tb_stt);
+                                return;
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            Utils.ReturnStatus("Connect fail", "", tb_stt);
-                            return;
+                            Utils.ReturnStatus("Connect fail", ex.Message, tb_stt);
+                        }
+                        finally
+                        {
                         }
                     }
-
-                    catch (Exception ex)
+                    else
                     {
-                        Utils.ReturnStatus("Connect fail", ex.Message, tb_stt);
-                    }
-                    finally
-                    {
+                        Utils.ReturnStatus("Connection null", "", tb_stt);
                     }
                 }
             }
@@ -144,13 +155,12 @@ namespace ExcuteScripts
             try
             {
                 Utils.ClearFolder(Constants.DATAFOLDERPATH);
-
-                tb_stt.Text = "Đã xóa tất cả các file trong thư mục Data.";
+                Utils.ReturnStatus("Deleted all files in the Data folder.", "", tb_stt);
                 tb_view_ip.Clear();
             }
             catch (Exception ex)
             {
-                tb_stt.Text = "Lỗi khi xóa file: " + ex.Message;
+                Utils.ReturnStatus("Error deleting file", ex.Message, tb_stt);
             }
         }
 
@@ -159,12 +169,12 @@ namespace ExcuteScripts
             try
             {
                 Process.Start(Constants.LOGFULLPATH);
-                tb_stt.Text = "Đang mở file ...";
+                Utils.ReturnStatus("Opening log file...", "", tb_stt);
                 lb_Data.Text = Constants.LOGFULLPATH;
             }
             catch (Exception ex)
             {
-                tb_stt.Text = "Lỗi khi mở file log: " + ex.Message;
+                Utils.ReturnStatus("Error opening log file", ex.Message, tb_stt);
             }
         }
 
@@ -173,12 +183,12 @@ namespace ExcuteScripts
             try
             {
                 Process.Start(Constants.DBCONFIGFULLPATH);
-                tb_stt.Text = "Đang mở file ...";
+                Utils.ReturnStatus("Opening config file...", "", tb_stt);
                 lb_Data.Text = Constants.DBCONFIGFULLPATH;
             }
             catch (Exception ex)
             {
-                tb_stt.Text = "Lỗi khi mở file config: " + ex.Message;
+                Utils.ReturnStatus("Error opening config file", ex.Message, tb_stt);
             }
         }
         #endregion
@@ -204,18 +214,14 @@ namespace ExcuteScripts
                                     string sqlScript = File.ReadAllText(file);
                                     commands = SplitString(sqlScript);
 
-                                    if (commands.Count < 1)
-                                    {
-                                        Utils.ReturnStatus("File: " + fileName + " execute failed", " No valid data", tb_stt);
-                                    }
-                                    else
+                                    if (commands != null && commands.Count > 0)
                                     {
                                         foreach (string commandText in commands)
                                         {
                                             command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
 
                                             try
-                                            {
+                                            { // tìm cách rollback
                                                 command.ExecuteNonQuery();           // thêm vấn đề là, file có 3 đoạn, nếu như run oke 2 đoạn đầu rồi, đoạn thú 3 chạy lỗi, thì 2 đoạn đầu vẫn không được rollback?
                                             }
                                             catch (OracleException ex)
@@ -246,87 +252,45 @@ namespace ExcuteScripts
             }
         }
 
-        private void ExcuteCommandScript(string file)
+        private async void ExcuteSqlPlusScript(string scriptFilePath, OracleConnection connection)
         {
-            //string fileName = Path.GetFileName(file);
-            //try
-            //{
-            //    dbManager.OpenConnection();
-            //    if (dbManager.GetState() == ConnectionState.Open)
-            //    {
-            //        string sqlScript = System.IO.File.ReadAllText(file);
-            //        string[] sqlStatements = sqlScript.Split(';');
+            try
+            {
+                using (Process process = new Process())
+                {
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = "sqlplus",
+                        Arguments = connection.ConnectionString + " @" + scriptFilePath,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    };
 
-            //        foreach (string sqlStatement in sqlStatements)
-            //        {
-            //            if (!string.IsNullOrWhiteSpace(sqlStatement))
-            //            {
-            //                using (OracleCommand cmd = new OracleCommand(sqlStatement, dbManager.GetConnection()))
-            //                {
-            //                    cmd.ExecuteNonQuery();
-            //                }
-            //            }
-            //        }
+                    process.StartInfo = startInfo;
+                    process.Start();
 
-            //        Utils.ReturnStatus("File: " + fileName + " excute success", "", tb_stt);
-            //        dbManager.CloseConnection();
-            //    }
-            //    else
-            //    {
-            //        dbManager.CloseConnection();
-            //    }
-            //}
-            //catch (OracleException ex)
-            //{
-            //    string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
-            //    Utils.ReturnStatus("File: " + fileName + " execute failed", errorMessage, tb_stt);
-            //    dbManager.CloseConnection();
-            //}
-            //catch (Exception ex)
-            //{
-            //    Utils.ReturnStatus("File: " + fileName + " execute failed", ex.Message, tb_stt);
-            //    dbManager.CloseConnection();
-            //}
-        }
+                    string output = await process.StandardOutput.ReadToEndAsync();
+                    string error = await process.StandardError.ReadToEndAsync();
 
-        private void ExcuteSqlPlusScript(string scriptFilePath, OracleConnection connectionString)
-        {
-            //Console.WriteLine("connectionString", connectionString);
-            //try
-            //{
-            //    ProcessStartInfo startInfo = new ProcessStartInfo();
-            //    startInfo.FileName = "sqlplus";
-            //    startInfo.Arguments = connectionString + " @" + scriptFilePath;
-            //    startInfo.UseShellExecute = false;
-            //    startInfo.RedirectStandardOutput = true;
-            //    startInfo.RedirectStandardError = true;
-            //    startInfo.CreateNoWindow = true;
+                    process.WaitForExit();
 
-            //    using (Process process = new Process())
-            //    {
-            //        process.StartInfo = startInfo;
-            //        process.Start();
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        // xử lý ouput ...
+                    }
 
-            //        string output = process.StandardOutput.ReadToEnd();
-            //        string error = process.StandardError.ReadToEnd();
-
-            //        process.WaitForExit();
-
-            //        if (!string.IsNullOrEmpty(output))
-            //        {
-
-            //        }
-
-            //        if (!string.IsNullOrEmpty(error))
-            //        {
-            //            Utils.ReturnStatus("Run script on sqlplus fail", "", tb_stt);
-            //        }
-            //    }
-            //}
-            //catch (Exception ex)
-            //{
-            //    Utils.ReturnStatus("Run script on sqlplus fail", ex.Message, tb_stt);
-            //}
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        Utils.ReturnStatus("Run script on sqlplus fail", "", tb_stt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.ReturnStatus("Run script on sqlplus fail", ex.Message, tb_stt);
+            }
         }
 
         private string BuildRegexPattern(string[] scriptKeys)
@@ -347,28 +311,7 @@ namespace ExcuteScripts
         private List<string> SplitString(string sqlScript)
         {
             List<string> result = new List<string>();
-
-            //string[] commands = sqlScript.Split(new[] { "\\" }, StringSplitOptions.RemoveEmptyEntries); // thêm điều kiện tách scripts
-            // tách từng đoạn, sau đó tìm cách loại bỏ cmt trong script được tách
-            //string[] commands = sqlScript.Split(new[] { ";", "/" }, StringSplitOptions.RemoveEmptyEntries);
-            //foreach (var item in commands)
-            //{
-            //    string updateItem = item.Trim() + ";";
-
-            //    if (Constants.SCRIPTKEYS.Any(key => updateItem.TrimStart().StartsWith(key, StringComparison.OrdinalIgnoreCase)))
-            //    {
-
-            //        string[] parts = updateItem.Split(new string[] { matchingKeywords }, StringSplitOptions.RemoveEmptyEntries);
-
-            //    }
-            //    if (!string.IsNullOrWhiteSpace(updateItem))
-            //    {
-            //        result.Add(updateItem);
-            //    }
-
-            //}
-
-            string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);
+            string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);  // thêm các key để bắt query 
             MatchCollection matches = Regex.Matches(sqlScript, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
             string[] scriptParts = new string[matches.Count];
@@ -380,6 +323,7 @@ namespace ExcuteScripts
 
             return result;
         }
+
         #endregion
 
 
