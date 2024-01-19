@@ -12,7 +12,7 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
 {
     class OracleDBManager
     {
-        private OracleConnection connection;
+        private OracleConnection connection ;
         private OracleConnectionStringBuilder connectionStringBuilder;
 
         public OracleDBManager()
@@ -32,6 +32,7 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             }
             connectionStringBuilder.UserID = user;
             connectionStringBuilder.Password = password;
+            connection = new OracleConnection(connectionStringBuilder.ConnectionString);
         }
 
         public void SetConnectionParameters(string host, string port, string sid, string service_name, string user, string password, string is_sid, string is_server, string server, bool sysDba = false)
@@ -59,31 +60,21 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
                 }
             }
 
-            connectionStringBuilder.UserID = user;
-            connectionStringBuilder.Password = password;
-
             if (sysDba)
             {
                 connectionStringBuilder.DBAPrivilege = "SYSDBA";
             }
+
+            connectionStringBuilder.UserID = user;
+            connectionStringBuilder.Password = password;
+            connection = new OracleConnection(connectionStringBuilder.ConnectionString);
         }
 
         public void OpenConnection()
         {
             try
             {
-                if (connection == null)
-                {
-                    connection = new OracleConnection(connectionStringBuilder.ConnectionString);
-                    connection.Open();
-                }
-                else
-                {
-                    CloseConnection();
-                    OracleConnection connection = null;
-                    connection = new OracleConnection(connectionStringBuilder.ConnectionString);
-                    connection.Open();
-                }
+                connection.Open();
             }
             catch (Exception ex)
             {
@@ -96,14 +87,14 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             if (connection != null && connection.State == ConnectionState.Open)
             {
                 connection.Close();
-                connection = null;
+                connection.Dispose();
                 Utils.WriteToLogFile("Connection closed successfully.");
             }
         }
 
         public OracleConnection GetConnection()
         {
-            return connection;
+            return new OracleConnection(connectionStringBuilder.ConnectionString);
         }
 
         public ConnectionState GetState()
