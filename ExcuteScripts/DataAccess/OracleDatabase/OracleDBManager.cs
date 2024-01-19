@@ -72,12 +72,18 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
         {
             try
             {
-                if (connection != null && connection.State == ConnectionState.Open)
+                if (connection == null)
                 {
-                    Utils.WriteToLogFile("Connection is already open.", "");
+                    connection = new OracleConnection(connectionStringBuilder.ConnectionString);
+                    connection.Open();
                 }
-                connection = new OracleConnection(connectionStringBuilder.ConnectionString);
-                connection.Open();
+                else
+                {
+                    CloseConnection();
+                    OracleConnection connection = null;
+                    connection = new OracleConnection(connectionStringBuilder.ConnectionString);
+                    connection.Open();
+                }
             }
             catch (Exception ex)
             {
@@ -87,9 +93,11 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
 
         public void CloseConnection()
         {
-            if (connection != null && connection.State == System.Data.ConnectionState.Open)
+            if (connection != null && connection.State == ConnectionState.Open)
             {
                 connection.Close();
+                connection = null;
+                Utils.WriteToLogFile("Connection closed successfully.");
             }
         }
 
@@ -97,6 +105,7 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
         {
             return connection;
         }
+
         public ConnectionState GetState()
         {
             return GetConnection().State;

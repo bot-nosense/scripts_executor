@@ -21,7 +21,6 @@ namespace ExcuteScripts
     {
         #region Props
         private OracleDBManager dbManager;
-        private OracleConnection connection;
         private OracleTransaction transaction;
         #endregion
 
@@ -46,7 +45,6 @@ namespace ExcuteScripts
 
             dbManager = new OracleDBManager();
             dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, isServer, serverName, sysDba);
-            connection = dbManager.GetConnection();
 
             Utils.WriteToLogFile("--------", "");
             Utils.WriteToLogFile(" \t \t \t NEW SEESION", "");
@@ -56,16 +54,21 @@ namespace ExcuteScripts
         private void bt_conn_Click(object sender, EventArgs e)
         {
             try
-            {
-                dbManager.OpenConnection();
-                if (dbManager.GetState() == ConnectionState.Open)
+            {   
+                using (OracleConnection connection = dbManager.GetConnection())
                 {
-                    Utils.ReturnStatus("Connect success", "", tb_stt);
-                }
-                else
-                {
-                    Utils.ReturnStatus("Connect fail", "", tb_stt);
-                    return;
+                    dbManager.OpenConnection();
+                    ConnectionState currentState = dbManager.GetState();
+
+                    if (currentState == ConnectionState.Open)
+                    {
+                        Utils.ReturnStatus("Connect success", "", tb_stt);
+                    }
+                    else
+                    {
+                        Utils.ReturnStatus("Connect fail", "", tb_stt);
+                        return;
+                    }
                 }
             }
             catch (Exception ex)
@@ -121,8 +124,6 @@ namespace ExcuteScripts
         {
             string[] sqlFiles = Directory.GetFiles(Constants.DATAFOLDERPATH, "*.sql");
             List<string> commands = new List<string>();
-            connection = dbManager.GetConnection();
-            dbManager.OpenConnection();
 
             if (sqlFiles.Length == 0)
             {
@@ -182,74 +183,80 @@ namespace ExcuteScripts
         #region Methods
         private void ExcuteOracleCommand(string[] sqlFiles, OracleTransaction transaction, List<string> commands)
         {
-            try
+            using (OracleConnection connection = dbManager.GetConnection())
             {
-                using (transaction = connection.BeginTransaction())
+                try
                 {
-                    if (dbManager.GetState() == ConnectionState.Open)
+                    dbManager.OpenConnection();
+                    ConnectionState currentState = dbManager.GetState();
+
+                    if (currentState == ConnectionState.Open)
                     {
-                        foreach (string file in sqlFiles)
-                        {
-                            string fileName = Path.GetFileName(file);
-                            string sqlScript = File.ReadAllText(file);
-
-                            try
+                        //using (transaction = connection.BeginTransaction())               // cân nhắc sử dụng transaction ?
+                        //{
+                            foreach (string file in sqlFiles)
                             {
-                                using (OracleCommand command = connection.CreateCommand())
+                                string fileName = Path.GetFileName(file);
+                                string sqlScript = File.ReadAllText(file);
+
+                                try
                                 {
-                                    command.CommandType = CommandType.Text;
-                                    command.Transaction = transaction;
-                                    commands = SplitString(sqlScript);
-                                    
-                                    if (commands.Count < 1)
+                                    using (OracleCommand command = connection.CreateCommand())
                                     {
-                                        Utils.ReturnStatus("File: " + fileName + " execute failed", " No valid data", tb_stt);
-                                    }
-                                    else
-                                    {
-                                        foreach (string commandText in commands)
+                                        command.CommandType = CommandType.Text;
+                                        command.Transaction = transaction;
+                                        commands = SplitString(sqlScript);
+
+                                        if (commands.Count < 1)
                                         {
-                                            command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
-
-                                            try
-                                            {
-                                                command.ExecuteNonQuery();
-                                            }
-                                            catch (OracleException ex)
-                                            {
-                                                Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
-                                                transaction.Rollback();
-                                                return;
-                                            }
+                                            Utils.ReturnStatus("File: " + fileName + " execute failed", " No valid data", tb_stt);
                                         }
+                                        else
+                                        {
+                                            foreach (string commandText in commands)
+                                            {
+                                                command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
 
-                                        Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
-                                    } 
+                                                try
+                                                {
+                                                    command.ExecuteNonQuery();
+                                                }
+                                                catch (OracleException ex)
+                                                {
+                                                    Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
+                                                    //transaction.Rollback();
+                                                    return;
+                                                }
+                                            }
+
+                                            Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                        }
+                                    }
+                                }
+                                catch (OracleException ex)
+                                {
+                                    string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
+                                    Utils.ReturnStatus("File: " + fileName + " execute failed", errorMessage, tb_stt);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Utils.ReturnStatus("File: " + fileName + " execute failed", ex.Message, tb_stt);
                                 }
                             }
-                            catch (OracleException ex)
-                            {
-                                string errorMessage = $"Oracle error occurred: {ex.Message}\nStackTrace: {ex.StackTrace}";
-                                Utils.ReturnStatus("File: " + fileName + " execute failed", errorMessage, tb_stt);
-                            }
-                            catch (Exception ex)
-                            {
-                                Utils.ReturnStatus("File: " + fileName + " execute failed", ex.Message, tb_stt);
-                            }
-                        }
 
-                        transaction.Commit();
+                            //transaction.Commit();
+                        //}
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Utils.ReturnStatus("Error occurred", ex.Message, tb_stt);
-            }
-            finally
-            {
-                transaction?.Dispose();
-                dbManager.CloseConnection();
+                catch (Exception ex)
+                {
+                    Utils.ReturnStatus("Error occurred", ex.Message, tb_stt);
+                }
+                finally
+                {
+                    transaction?.Dispose();
+                    dbManager.CloseConnection();
+                }
             }
         }
 
