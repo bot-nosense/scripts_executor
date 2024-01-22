@@ -23,6 +23,7 @@ namespace ExcuteScripts
         private OracleDBManager dbManager;
         OracleConnection connection;
         private OracleTransaction transaction;
+        bool sysDba;
         #endregion
 
         #region Events
@@ -40,12 +41,19 @@ namespace ExcuteScripts
             string userId = dbConfig["USER_ID"];
             string password = dbConfig["PASSWORD"];
             string isSid = dbConfig["IS_SID"];
-            string isServer = dbConfig["IS_SERVER"];
+            string isClient = dbConfig["IS_CLIENT"];
             string serverName = dbConfig["SERVER"];
-            bool sysDba = false;
+            if (int.Parse(isClient) == 1)
+            {
+                sysDba = true;
+            }
+            else
+            {
+                sysDba = false;
+            }
 
             dbManager = new OracleDBManager();
-            dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, isServer, serverName, sysDba);
+            dbManager.SetConnectionParameters(host, port, sid, serviceName, userId, password, isSid, isClient, serverName, sysDba);
 
             Utils.WriteToLogFile("--------", "");
             Utils.WriteToLogFile(" \t \t \t NEW SEESION", "");
@@ -325,7 +333,6 @@ namespace ExcuteScripts
         }
 
         #endregion
-
 
     }
 }

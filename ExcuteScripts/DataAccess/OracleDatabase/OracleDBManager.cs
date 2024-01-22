@@ -35,24 +35,24 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
             connection = new OracleConnection(connectionStringBuilder.ConnectionString);
         }
 
-        public void SetConnectionParameters(string host, string port, string sid, string service_name, string user, string password, string is_sid, string is_server, string server, bool sysDba = false)
+        public void SetConnectionParameters(string host, string port, string sid, string serviceName, string user, string password, string isSid, string isClient, string serverName, bool sysDba = false)
         {
-            if (int.Parse(is_server) == 1)
+            if (int.Parse(isClient) == 1)
             {
-                if (int.Parse(is_sid) == 0)
+                if (int.Parse(isSid) == 0)
                 {
-                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SERVICE_NAME={service_name}))(SERVER={server}))";
+                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SERVICE_NAME={serviceName}))(SERVER={serverName}))";
                 }
                 else
                 {
-                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SID={sid}))(SERVER={server}))";
+                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SID={sid}))(SERVER={serverName}))";
                 }
             }
             else
             {
-                if (int.Parse(is_sid) == 0)
+                if (int.Parse(isSid) == 0)
                 {
-                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={service_name})))";
+                    connectionStringBuilder.DataSource = $"(DESCRIPTION=(ADDRESS=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port})))(CONNECT_DATA=(SERVICE_NAME={serviceName})))";
                 }
                 else
                 {
@@ -94,7 +94,7 @@ namespace ExcuteScripts.DataAccess.OracleDatabase
 
         public OracleConnection GetConnection()
         {
-            return new OracleConnection(connectionStringBuilder.ConnectionString);
+            return connection; // new OracleConnection(connectionStringBuilder.ConnectionString);
         }
 
         public ConnectionState GetState()
