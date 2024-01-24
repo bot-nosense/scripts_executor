@@ -21,9 +21,9 @@ namespace ExcuteScripts
     {
         #region Props
         private OracleDBManager dbManager;
-        OracleConnection connection;
-        private OracleTransaction transaction;
-        bool sysDba;
+        private OracleConnection connection;
+        //private OracleTransaction transaction;
+        private bool sysDba;
         #endregion
 
         #region Events
@@ -43,6 +43,7 @@ namespace ExcuteScripts
             string isSid = dbConfig["IS_SID"];
             string isClient = dbConfig["IS_CLIENT"];
             string serverName = dbConfig["SERVER"];
+
             if (int.Parse(isClient) == 1)
             {
                 sysDba = true;
@@ -154,7 +155,7 @@ namespace ExcuteScripts
             }
             else
             {
-                ExcuteOracleCommand(sqlFiles, transaction, commands);
+                ExcuteOracleCommand(sqlFiles, commands); // transaction,
             }
         }
 
@@ -202,7 +203,7 @@ namespace ExcuteScripts
         #endregion
 
         #region Methods
-        private void ExcuteOracleCommand(string[] sqlFiles, OracleTransaction transaction, List<string> commands)
+        private void ExcuteOracleCommand(string[] sqlFiles, List<string> commands) //, OracleTransaction transaction
         {
             using (connection = dbManager.GetConnection())
             {
@@ -214,33 +215,41 @@ namespace ExcuteScripts
 
                         using (OracleCommand command = connection.CreateCommand())
                         {
-                            if (connection.State == ConnectionState.Open)
+                            using (OracleTransaction transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted))
                             {
-                                foreach (string file in sqlFiles)
+                                command.Transaction = transaction;
+
+                                if (connection.State == ConnectionState.Open)
                                 {
-                                    string fileName = Path.GetFileName(file);
-                                    string sqlScript = File.ReadAllText(file);
-                                    commands = SplitString(sqlScript);
-
-                                    if (commands != null && commands.Count > 0)
+                                    foreach (string file in sqlFiles)
                                     {
-                                        foreach (string commandText in commands)
+                                        string fileName = Path.GetFileName(file);
+                                        string sqlScript = File.ReadAllText(file);
+                                        commands = SplitString(sqlScript);
+
+                                        if (commands != null && commands.Count > 0)
                                         {
-                                            command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
-
-                                            try
-                                            { // tìm cách rollback
-                                                command.ExecuteNonQuery();           // thêm vấn đề là, file có 3 đoạn, nếu như run oke 2 đoạn đầu rồi, đoạn thú 3 chạy lỗi, thì 2 đoạn đầu vẫn không được rollback?
-                                            }
-                                            catch (OracleException ex)
+                                            foreach (string commandText in commands)
                                             {
-                                                Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
-                                                return;
-                                            }
-                                        }
+                                                command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
 
-                                        Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                                try
+                                                { 
+                                                    command.ExecuteNonQuery();           
+                                                }
+                                                catch (OracleException ex)
+                                                {
+                                                    transaction.Rollback();
+                                                    Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
+                                                    return;
+                                                }
+                                            }
+
+                                            Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                        }
                                     }
+
+                                    transaction.Commit();
                                 }
                             }
                         }

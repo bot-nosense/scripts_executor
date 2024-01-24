@@ -450,3 +450,10 @@ Object name: 'OracleConnection'.
 20240122-17:54,  	 	 	 NEW SEESION, 
 20240122-17:54, Login Param: ideapad3, 1521, vdoandb, SYS, @nHhung123, 
 20240122-17:54, Connect success, 
+20240124-13:54, --------, 
+20240124-13:54,  	 	 	 NEW SEESION, 
+20240124-13:54, Login Param: 192.168.2.11, 1521, ORADB, BOJBSV, BOJBSV, 
+20240124-13:56, --------, 
+20240124-13:56,  	 	 	 NEW SEESION, 
+20240124-13:56, Login Param: 192.168.2.11, 1521, ORADB, BOJBSV, BOJBSV, 
+20240124-13:56, Connect fail, ORA-01017: invalid username/password; logon denied
