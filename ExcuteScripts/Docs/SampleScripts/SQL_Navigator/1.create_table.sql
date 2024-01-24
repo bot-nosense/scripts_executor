@@ -2,7 +2,7 @@
 -- Generated 15-Jan-2024 13:56:41 from SYS@(DESCRIPTION =(ADDRESS_LIST =(ADDRESS = (PROTOCOL = TCP)(HOST = ideapad3)(PORT = 1521)))(CONNECT_DATA =(SERVICE_NAME = vdoandb)))
 
 
-CREATE TABLE alert_qt1
+CREATE TABLE alert_qt10
     (q_name                         VARCHAR2(128 BYTE),
     msgid                          RAW(16) ,
     corrid                         VARCHAR2(128 BYTE),
@@ -53,7 +53,7 @@ CREATE TABLE alert_qt1
 
 -- Constraints for ALERT_QT
 
-ALTER TABLE alert_qt1
+ALTER TABLE alert_qt10
 ADD PRIMARY KEY (msgid)
 USING INDEX
   PCTFREE     10

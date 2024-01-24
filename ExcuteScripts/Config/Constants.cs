@@ -15,6 +15,6 @@ namespace ExcuteScripts.Config
         public static readonly string DATAFOLDERPATH = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Datas");
         public static readonly string LOGFULLPATH = Path.GetFullPath(LOGFILEPATH);
         public static readonly string DBCONFIGFULLPATH = Path.GetFullPath(DBCONFIGPATH);
-        public static readonly string[] SCRIPTKEYS = { "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "COMMENT", "GRANT" };
+        public static readonly string[] SCRIPTKEYS = { "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "COMMENT", "GRANT", "COMMENT" };
     }
 }

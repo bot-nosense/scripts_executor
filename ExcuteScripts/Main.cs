@@ -44,7 +44,7 @@ namespace ExcuteScripts
             string isClient = dbConfig["IS_CLIENT"];
             string serverName = dbConfig["SERVER"];
 
-            if (int.Parse(isClient) == 1)
+            if (int.Parse(isClient) == 0)
             {
                 sysDba = true;
             }
@@ -70,36 +70,35 @@ namespace ExcuteScripts
             }
             else
             {
-                using (connection = dbManager.GetConnection())
+                connection = dbManager.GetConnection();
+                if (connection != null && connection.State != ConnectionState.Open)
                 {
-                    if (connection != null && connection.State != ConnectionState.Open)
+                    try
                     {
-                        try
-                        {
-                            connection.Open();
+                        connection.Open();
 
-                            if (connection.State == ConnectionState.Open)
-                            {
-                                Utils.ReturnStatus("Connect success", "", tb_stt);
-                            }
-                            else
-                            {
-                                Utils.ReturnStatus("Connect fail", " connection cannot be opened", tb_stt);
-                                return;
-                            }
-                        }
-                        catch (Exception ex)
+                        if (connection.State == ConnectionState.Open)
                         {
-                            Utils.ReturnStatus("Connect fail", ex.Message, tb_stt);
+                            Utils.ReturnStatus("Connect success", "", tb_stt);
                         }
-                        finally
+                        else
                         {
+                            Utils.ReturnStatus("Connect fail", " connection cannot be opened", tb_stt);
+                            return;
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        Utils.ReturnStatus("Connection null", "", tb_stt);
+                        Utils.ReturnStatus("Connect fail", ex.Message, tb_stt);
                     }
+                    finally
+                    {
+                        connection.Close();
+                    }
+                }
+                else
+                {
+                    Utils.ReturnStatus("Connection null", "", tb_stt);
                 }
             }
         }
@@ -205,67 +204,66 @@ namespace ExcuteScripts
         #region Methods
         private void ExcuteOracleCommand(string[] sqlFiles, List<string> commands) //, OracleTransaction transaction
         {
-            using (connection = dbManager.GetConnection())
+            connection = dbManager.GetConnection();
+            if (connection != null && connection.State != ConnectionState.Open)
             {
-                if (connection != null && connection.State != ConnectionState.Open)
+                try
                 {
-                    try
+                    connection.Open();
+
+                    using (OracleCommand command = connection.CreateCommand())
                     {
-                        connection.Open();
-
-                        using (OracleCommand command = connection.CreateCommand())
+                        using (OracleTransaction transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted))
                         {
-                            using (OracleTransaction transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted))
+                            command.Transaction = transaction;
+
+                            if (connection.State == ConnectionState.Open)
                             {
-                                command.Transaction = transaction;
-
-                                if (connection.State == ConnectionState.Open)
+                                foreach (string file in sqlFiles)
                                 {
-                                    foreach (string file in sqlFiles)
+                                    string fileName = Path.GetFileName(file);
+                                    string sqlScript = File.ReadAllText(file);
+                                    commands = SplitString(sqlScript);
+
+                                    if (commands != null && commands.Count > 0)
                                     {
-                                        string fileName = Path.GetFileName(file);
-                                        string sqlScript = File.ReadAllText(file);
-                                        commands = SplitString(sqlScript);
-
-                                        if (commands != null && commands.Count > 0)
+                                        foreach (string commandText in commands)
                                         {
-                                            foreach (string commandText in commands)
+                                            command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
+
+                                            try
                                             {
-                                                command.CommandText = commandText.Trim().Replace(";", "").Replace("/", "");
-
-                                                try
-                                                { 
-                                                    command.ExecuteNonQuery();           
-                                                }
-                                                catch (OracleException ex)
-                                                {
-                                                    transaction.Rollback();
-                                                    Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
-                                                    return;
-                                                }
+                                                command.ExecuteNonQuery();
                                             }
-
-                                            Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                            catch (OracleException ex)
+                                            {
+                                                transaction.Rollback();
+                                                Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
+                                                return;
+                                            }
                                         }
-                                    }
 
-                                    transaction.Commit();
+                                        Utils.ReturnStatus("Transaction committed. File: " + fileName + " executed successfully", "", tb_stt);
+                                    }
                                 }
+
+                                transaction.Commit();
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Utils.ReturnStatus("Error occurred", ex.Message, tb_stt);
-                    }
-                    finally
-                    {
-                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Utils.ReturnStatus("Connecting fail", "", tb_stt);
+                    Utils.ReturnStatus("Error occurred", ex.Message, tb_stt);
                 }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            else
+            {
+                Utils.ReturnStatus("Connecting fail", "", tb_stt);
             }
         }
 
@@ -310,13 +308,45 @@ namespace ExcuteScripts
             }
         }
 
+        //private string BuildRegexPattern(string[] scriptKeys)
+        //{
+        //    StringBuilder patternBuilder = new StringBuilder("(");
+
+        //    foreach (string key in scriptKeys)
+        //    {
+        //        patternBuilder.Append($"{key}[^/;]+[/;]|");
+        //    }
+
+        //    patternBuilder.Remove(patternBuilder.Length - 1, 1);
+        //    patternBuilder.Append(")");
+
+        //    return patternBuilder.ToString();
+        //}
+
+        //private List<string> SplitString(string sqlScript)
+        //{
+        //    List<string> result = new List<string>();
+        //    string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);  // thêm các key để bắt query 
+        //    MatchCollection matches = Regex.Matches(sqlScript, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+        //    string[] scriptParts = new string[matches.Count];
+        //    for (int i = 0; i < matches.Count; i++)
+        //    {
+        //        scriptParts[i] = matches[i].Value.Trim();
+        //        result.Add(scriptParts[i]);
+        //    }
+
+        //    return result;
+        //}
+
         private string BuildRegexPattern(string[] scriptKeys)
         {
             StringBuilder patternBuilder = new StringBuilder("(");
 
             foreach (string key in scriptKeys)
             {
-                patternBuilder.Append($"{key}[^/;]+[/;]|");
+                // Modify the regex pattern to ignore lines starting with "--"
+                patternBuilder.Append($"{key}(?![^\\S\r\n]*--)[^/;]+[/;]|");
             }
 
             patternBuilder.Remove(patternBuilder.Length - 1, 1);
@@ -327,6 +357,7 @@ namespace ExcuteScripts
 
         private List<string> SplitString(string sqlScript)
         {
+            //string[] SCRIPTKEYS = { "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "COMMENT", "GRANT", "COMMENT" };
             List<string> result = new List<string>();
             string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);  // thêm các key để bắt query 
             MatchCollection matches = Regex.Matches(sqlScript, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
@@ -340,6 +371,9 @@ namespace ExcuteScripts
 
             return result;
         }
+
+        
+
 
         #endregion
 
