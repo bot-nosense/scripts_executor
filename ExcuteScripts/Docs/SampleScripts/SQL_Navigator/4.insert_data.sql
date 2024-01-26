@@ -1,4 +1,4 @@
-INSERT INTO alert_qt10 (
+INSERT INTO alert_qt1000 (
   q_name,
   msgid,
   corrid,

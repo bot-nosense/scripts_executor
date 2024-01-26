@@ -2,7 +2,7 @@
 -- Generated 24-Jan-2024 15:49:54 from BOJBSV@DB_11
 
 
-CREATE TABLE afmast2
+CREATE TABLE afmast1000
     (actype                         VARCHAR2(4 BYTE) NOT NULL,
     custid                         VARCHAR2(20 BYTE),
     acctno                         VARCHAR2(20 BYTE) NOT NULL,
@@ -104,15 +104,15 @@ CREATE TABLE afmast2
 
 -- Comments for afmast1
 
-COMMENT ON COLUMN afmast2.commiss IS 'TK UY THAC HAY KHONG'
+COMMENT ON COLUMN afmast1000.commiss IS 'TK UY THAC HAY KHONG'
 /
-COMMENT ON COLUMN afmast2.creditlimit IS 'HM bao lanh cap them'
+COMMENT ON COLUMN afmast1000.creditlimit IS 'HM bao lanh cap them'
 /
-COMMENT ON COLUMN afmast2.dislimit IS 'N:KHong khau tru,Y: CO KHAU TRU'
+COMMENT ON COLUMN afmast1000.dislimit IS 'N:KHong khau tru,Y: CO KHAU TRU'
 /
-COMMENT ON COLUMN afmast2.manty IS 'MAC DINH LA NM'
+COMMENT ON COLUMN afmast1000.manty IS 'MAC DINH LA NM'
 /
-COMMENT ON COLUMN afmast2.payintamt IS 'co tinh lai hay k'
+COMMENT ON COLUMN afmast1000.payintamt IS 'co tinh lai hay k'
 /
 
 -- End of DDL Script for Table BOJBSV.AFMAST

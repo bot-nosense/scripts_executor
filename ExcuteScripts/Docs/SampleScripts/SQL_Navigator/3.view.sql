@@ -2,9 +2,9 @@
 -- Generated 15-Jan-2024 13:55:33 from SYS@(DESCRIPTION =(ADDRESS_LIST =(ADDRESS = (PROTOCOL = TCP)(HOST = ideapad3)(PORT = 1521)))(CONNECT_DATA =(SERVICE_NAME = vdoandb)))
 
 
-CREATE OR REPLACE VIEW view_alert_qt_10 
+CREATE OR REPLACE VIEW view_alert_qt_1000 
 AS
-    SELECT * FROM alert_qt10
+    SELECT * FROM alert_qt1000
 /
 
 

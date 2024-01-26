@@ -308,56 +308,38 @@ namespace ExcuteScripts
             }
         }
 
-        //private string BuildRegexPattern(string[] scriptKeys)
-        //{
-        //    StringBuilder patternBuilder = new StringBuilder("(");
-
-        //    foreach (string key in scriptKeys)
-        //    {
-        //        patternBuilder.Append($"{key}[^/;]+[/;]|");
-        //    }
-
-        //    patternBuilder.Remove(patternBuilder.Length - 1, 1);
-        //    patternBuilder.Append(")");
-
-        //    return patternBuilder.ToString();
-        //}
-
-        //private List<string> SplitString(string sqlScript)
-        //{
-        //    List<string> result = new List<string>();
-        //    string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);  // thêm các key để bắt query 
-        //    MatchCollection matches = Regex.Matches(sqlScript, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-        //    string[] scriptParts = new string[matches.Count];
-        //    for (int i = 0; i < matches.Count; i++)
-        //    {
-        //        scriptParts[i] = matches[i].Value.Trim();
-        //        result.Add(scriptParts[i]);
-        //    }
-
-        //    return result;
-        //}
-
         private string BuildRegexPattern(string[] scriptKeys)
         {
             StringBuilder patternBuilder = new StringBuilder("(");
 
             foreach (string key in scriptKeys)
             {
-                // Modify the regex pattern to ignore lines starting with "--"
-                patternBuilder.Append($"{key}(?![^\\S\r\n]*--)[^/;]+[/;]|");
+                // bắt đoạn proc
+                if (key == "CREATE OR REPLACE")
+                {
+                    patternBuilder.Append($@"\b{key}\b.*?(END;\s*/)\s*|"); // bắt đoạn mở bằng CREATE OR REPLACE, kết thúc bằng END; /
+                    break;
+                }
+                else
+                {
+                    patternBuilder.Append($@"\b{key}\b[^/;]+[/;]|"); // kết thúc bằng ';' hoặc '/'
+                }
             }
 
             patternBuilder.Remove(patternBuilder.Length - 1, 1);
             patternBuilder.Append(")");
+
+            //// Loại bỏ các đoạn bắt đầu bằng '/*' và kết thúc bằng '*/'
+            //patternBuilder.Insert(0, @"(?s)"); // Cho phép '.' trong biểu thức chính quy tương ứng với ký tự newline
+            //patternBuilder.Insert(0, @"(?:(?!/\*).)*"); // Không khớp với '/*' ở bất kỳ vị trí nào
+            //patternBuilder.Insert(0, @"(?:(?!\*/).)*"); // Không khớp với '*/' ở bất kỳ vị trí nào
+            //patternBuilder.Insert(0, @"(?:/\*(?:(?!\*/).)*\*/)?"); // Khớp với '/* ... */' ở bất kỳ vị trí nào hoặc không có
 
             return patternBuilder.ToString();
         }
 
         private List<string> SplitString(string sqlScript)
         {
-            //string[] SCRIPTKEYS = { "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "COMMENT", "GRANT", "COMMENT" };
             List<string> result = new List<string>();
             string pattern = BuildRegexPattern(Constants.SCRIPTKEYS);  // thêm các key để bắt query 
             MatchCollection matches = Regex.Matches(sqlScript, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
@@ -371,9 +353,6 @@ namespace ExcuteScripts
 
             return result;
         }
-
-        
-
 
         #endregion
 
