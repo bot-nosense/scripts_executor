@@ -3,7 +3,7 @@
 
 
 CREATE OR REPLACE 
-FUNCTION cal_so_ngay_tinh_lai_t(
+FUNCTION cal_so_ngay_tinh_lai_t00(
     ngayT VARCHAR2 DEFAULT 'T0'
 )
 RETURN  NUMBER

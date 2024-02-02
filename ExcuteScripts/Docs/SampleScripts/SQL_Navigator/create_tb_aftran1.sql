@@ -2,7 +2,7 @@
 -- Generated 24-Jan-2024 15:53:32 from BOJBSV@DB_11
 
 
-CREATE TABLE aftran1000
+CREATE TABLE aftran100000
     (txnum                          NVARCHAR2(30),
     txdate                         DATE,
     acctno                         VARCHAR2(20 BYTE),

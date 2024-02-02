@@ -1,2 +1,2 @@
-DELETE FROM alert_qt1000
+DELETE FROM test1
 WHERE q_name = 'QueueName1';

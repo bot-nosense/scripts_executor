@@ -154,7 +154,8 @@ namespace ExcuteScripts
             }
             else
             {
-                ExcuteOracleCommand(sqlFiles, commands); // transaction,
+
+                ExecuteScriptFiles();
             }
         }
 
@@ -353,6 +354,53 @@ namespace ExcuteScripts
 
             return result;
         }
+
+        private void ExecuteScriptFiles()
+        {
+            connection = dbManager.GetConnection();
+            if (connection != null && connection.State != ConnectionState.Open)
+            {
+                try
+                {
+                    connection.Open();
+
+                    string[] sqlFiles = Directory.GetFiles(Constants.DATAFOLDERPATH, "*.sql");
+
+                    foreach (string sqlFile in sqlFiles)
+                    {
+                        string fileName = Path.GetFileName(sqlFile);
+                        string scriptContent = File.ReadAllText(sqlFile);
+
+                        using (OracleCommand command = new OracleCommand(scriptContent, connection))
+                        {
+                            command.CommandType = CommandType.Text;
+                            try
+                            {
+                                command.ExecuteNonQuery();
+                            }
+                            catch (OracleException ex)
+                            {
+                                Utils.ReturnStatus("File: " + fileName + " execute fail", ex.Message, tb_stt);
+                                return;
+                            }
+                            Utils.ReturnStatus("File: " + fileName + " executed successfully", "", tb_stt);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Utils.ReturnStatus("Error occurred", ex.Message, tb_stt);
+                }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            else
+            {
+                Utils.ReturnStatus("Connecting fail", "", tb_stt);
+            }
+        }    
 
         #endregion
 
