@@ -1,9 +1,9 @@
 -- Start of DDL Script for Table BOJBSV.AFMAST
--- Generated 24-Jan-2024 15:49:54 from BOJBSV@DB_11
+-- Generated 2/2/2024 1:44:16 PM from BOJBSV@DB_11
 
 
-CREATE TABLE afmast100000
-    (actype                         VARCHAR2(4 BYTE) NOT NULL,
+CREATE TABLE afmast
+    (actype                        VARCHAR2(4 BYTE) NOT NULL,
     custid                         VARCHAR2(20 BYTE),
     acctno                         VARCHAR2(20 BYTE) NOT NULL,
     aftype                         VARCHAR2(3 BYTE),
@@ -102,17 +102,17 @@ CREATE TABLE afmast100000
 
 
 
--- Comments for afmast1
+-- Comments for AFMAST
 
-COMMENT ON COLUMN afmast100000.commiss IS 'TK UY THAC HAY KHONG'
+COMMENT ON COLUMN afmast.commiss IS 'TK UY THAC HAY KHONG'
 /
-COMMENT ON COLUMN afmast100000.creditlimit IS 'HM bao lanh cap them'
+COMMENT ON COLUMN afmast.creditlimit IS 'HM bao lanh cap them'
 /
-COMMENT ON COLUMN afmast100000.dislimit IS 'N:KHong khau tru,Y: CO KHAU TRU'
+COMMENT ON COLUMN afmast.dislimit IS 'N:KHong khau tru,Y: CO KHAU TRU'
 /
-COMMENT ON COLUMN afmast100000.manty IS 'MAC DINH LA NM'
+COMMENT ON COLUMN afmast.manty IS 'MAC DINH LA NM'
 /
-COMMENT ON COLUMN afmast100000.payintamt IS 'co tinh lai hay k'
+COMMENT ON COLUMN afmast.payintamt IS 'co tinh lai hay k'
 /
 
 -- End of DDL Script for Table BOJBSV.AFMAST
